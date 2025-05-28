@@ -13,7 +13,7 @@ import { useEmployees } from "@/hooks/use-employees"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
-
+import socket from "@/lib/socket"
 export function RealtimeCheckinTable() {
   const { employees } = useEmployees()
   const [searchTerm, setSearchTerm] = useState("")
@@ -25,56 +25,32 @@ export function RealtimeCheckinTable() {
 
   // Giả lập dữ liệu check-in gần đây
   useEffect(() => {
-    const generateRecentCheckins = () => {
-      const now = new Date()
-      const checkins = employees
-        .filter((emp) => emp.checkIn && emp.checkIn !== "-") // Chỉ lấy nhân viên đã check-in
-        .map((emp) => {
-          // Tạo thời gian check-in ngẫu nhiên trong vòng 2 giờ qua
-          const minutesAgo = Math.floor(Math.random() * 120)
-          const checkinTime = new Date(now.getTime() - minutesAgo * 60000)
+    const handleCheckin = (data) => {
+      const now = new Date(data.checkinTime || Date.now()) // hoặc BE gửi timestamp
 
-          return {
-            id: emp.id,
-            name: emp.name || "Nhân viên mới",
-            department: emp.department || "-",
-            position: emp.position || "-",
-            faceImage: emp.lastFaceImage || "/placeholder.svg?height=80&width=80",
-            checkinTime: checkinTime,
-            formattedTime: `${checkinTime.getHours().toString().padStart(2, "0")}:${checkinTime.getMinutes().toString().padStart(2, "0")}`,
-          }
-        })
+      const newCheckin = {
+        id: data.id,
+        name: data.name || "Nhân viên mới",
+        department: data.department || "-",
+        position: data.position || "-",
+        faceImage: data.faceImage || "/placeholder.svg",
+        checkinTime: now,
+        formattedTime: `${now.getHours().toString().padStart(2, "0")}:${now
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}`,
+      }
 
-      // Sắp xếp theo thời gian check-in gần nhất
-      return checkins.sort((a, b) => b.checkinTime - a.checkinTime)
+      setRecentCheckins((prev) => [newCheckin, ...prev.slice(0, 19)])
     }
 
-    setRecentCheckins(generateRecentCheckins())
+    // Lắng nghe sự kiện "checkin"
+    socket.on("checkin", handleCheckin)
 
-    // Giả lập cập nhật dữ liệu mỗi 10 giây
-    const interval = setInterval(() => {
-      // Thêm một check-in mới ngẫu nhiên
-      if (Math.random() > 0.5 && employees.length > 0) {
-        const randomEmployee = employees[Math.floor(Math.random() * employees.length)]
-        const now = new Date()
-
-        const newCheckin = {
-          id: randomEmployee.id,
-          name: randomEmployee.name || "Nhân viên mới",
-          department: randomEmployee.department || "-",
-          position: randomEmployee.position || "-",
-          faceImage: randomEmployee.lastFaceImage || "/placeholder.svg?height=80&width=80",
-          checkinTime: now,
-          formattedTime: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`,
-        }
-
-        setRecentCheckins((prev) => [newCheckin, ...prev.slice(0, 19)]) // Giữ tối đa 20 check-in
-      }
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [employees])
-
+    return () => {
+      socket.off("checkin", handleCheckin)
+    }
+  }, [])
   // Lọc check-in theo tìm kiếm và phòng ban
   const filteredCheckins = recentCheckins.filter((checkin) => {
     const matchesSearch =
