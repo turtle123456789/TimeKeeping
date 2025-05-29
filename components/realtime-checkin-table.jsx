@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
 import socket from "@/lib/socket"
+import { da } from "date-fns/locale"
 export function RealtimeCheckinTable() {
   const { employees } = useEmployees()
   const [searchTerm, setSearchTerm] = useState("")
@@ -25,29 +26,47 @@ export function RealtimeCheckinTable() {
 
   // Giả lập dữ liệu check-in gần đây
   useEffect(() => {
+    console.log("RealtimeCheckinTable mounted - Setting up socket listener")
+
     const handleCheckin = (data) => {
-      const now = new Date(data.checkinTime || Date.now()) // hoặc BE gửi timestamp
+      console.log("Received checkin event in RealtimeCheckinTable:", data)
+      
+      // Đảm bảo checkinTime là một đối tượng Date hợp lệ
+      let checkinTime;
+      if (data.checkinTime) {
+        console.log("Parsed exist:", checkinTime);
+        checkinTime = new Date(data.checkinTime);
+      } else if (data.timestamp) {
+        checkinTime = new Date(data.timestamp);
+      } else {
+        checkinTime = new Date();
+      }
+
+      console.log("Parsed checkinTime:", checkinTime);
 
       const newCheckin = {
-        id: data.id,
-        name: data.name || "Nhân viên mới",
+        id: data.employeeId,
+        name: data.fullName || "Nhân viên mới",
         department: data.department || "-",
         position: data.position || "-",
         faceImage: data.faceImage || "/placeholder.svg",
-        checkinTime: now,
-        formattedTime: `${now.getHours().toString().padStart(2, "0")}:${now
+        checkinTime: checkinTime,
+        formattedTime: `${checkinTime.getHours().toString().padStart(2, "0")}:${checkinTime
           .getMinutes()
           .toString()
           .padStart(2, "0")}`,
       }
 
+      console.log("Adding new checkin:", newCheckin)
       setRecentCheckins((prev) => [newCheckin, ...prev.slice(0, 19)])
     }
 
     // Lắng nghe sự kiện "checkin"
     socket.on("checkin", handleCheckin)
+    console.log("Socket listener for 'checkin' event has been set up")
 
     return () => {
+      console.log("RealtimeCheckinTable unmounting - Cleaning up socket listener")
       socket.off("checkin", handleCheckin)
     }
   }, [])
