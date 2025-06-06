@@ -47,8 +47,8 @@ export function RealtimeCheckinTable() {
       const newCheckin = {
         id: data.employeeId,
         name: data.fullName || "Nhân viên mới",
-        department: data.department || "-",
-        position: data.position || "-",
+        department: data.department || "Chưa có bộ phân",
+        position: data.position || "Chưa có vị trí",
         faceImage: data.faceImage || "/placeholder.svg",
         checkinTime: checkinTime,
         formattedTime: `${checkinTime.getHours().toString().padStart(2, "0")}:${checkinTime
@@ -157,26 +157,31 @@ export function RealtimeCheckinTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredCheckins.map((checkin) => (
-                    <TableRow key={`${checkin.id}-${checkin.checkinTime.getTime()}`}>
-                      <TableCell>{checkin.id}</TableCell>
-                      <TableCell className="font-medium">{checkin.name}</TableCell>
-                      <TableCell>{checkin.department}</TableCell>
-                      <TableCell>{checkin.position}</TableCell>
-                      <TableCell>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={checkin.faceImage || "/placeholder.svg"} alt="Khuôn mặt check-in" />
-                          <AvatarFallback>KM</AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell>{checkin.formattedTime}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                          {getRelativeTime(checkin.checkinTime)}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredCheckins.map((checkin, index) => 
+                    {
+                       const checkinTime = new Date(checkin.timestamp);
+                      const key = `${checkin.id}-${checkinTime.getTime()}-${index}`;
+                      return (
+                        <TableRow key={key}>
+                          <TableCell>{checkin.id}</TableCell>
+                          <TableCell className="font-medium">{checkin.name}</TableCell>
+                          <TableCell>{checkin.department}</TableCell>
+                          <TableCell>{checkin.position}</TableCell>
+                          <TableCell>
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={checkin.faceImage || "/placeholder.svg"} alt="Khuôn mặt check-in" />
+                              <AvatarFallback>KM</AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell>{checkin.formattedTime}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                              {getRelativeTime(checkin.checkinTime)}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                 )}
               </TableBody>
             </Table>
