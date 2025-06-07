@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -33,33 +33,49 @@ import { EditEmployeeModal } from "@/app/dashboard/management/edit-employee-moda
  * Hiển thị danh sách nhân viên và các chức năng quản lý
  */
 export function EmployeeManagementTable() {
-  // Lấy dữ liệu nhân viên từ hook
-  const { employees } = useEmployees()
   const router = useRouter()
+  const { employees, departments, isLoading, error, fetchEmployees } = useEmployees()
 
-  // State quản lý bộ lọc và hiển thị
-  const [searchTerm, setSearchTerm] = useState("") // Từ khóa tìm kiếm
-  const [departmentFilter, setDepartmentFilter] = useState("all") // Bộ lọc phòng ban
-  const [date, setDate] = useState(new Date()) // Ngày được chọn
+  // State quản lý dữ liệu và bộ lọc
+  const [searchTerm, setSearchTerm] = useState("")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
+  const [date, setDate] = useState(new Date())
 
   // State cho modal chỉnh sửa
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null)
 
-  // Lấy danh sách phòng ban duy nhất từ dữ liệu nhân viên
-  const departments = [...new Set(employees.map((emp) => emp.department).filter(Boolean))]
+  // Gọi API khi component mount hoặc khi thay đổi bộ lọc
+  useEffect(() => {
+    const formattedDate = format(date, "yyyy-MM-dd")
+    fetchEmployees(formattedDate)
+  }, [date])
 
   // Lọc nhân viên theo tìm kiếm và phòng ban
   const filteredEmployees = employees.filter((employee) => {
-    const matchesSearch =
-      employee.name?.toLowerCase().includes(searchTerm.toLowerCase()) || employee.id.toString().includes(searchTerm)
-    const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter
-    return matchesSearch && matchesDepartment
+    const searchTermLower = searchTerm.toLowerCase()
+    const fullName = employee.fullName?.toLowerCase() || ""
+    const employeeId = employee.employeeId?.toLowerCase() || ""
+    
+    // Lọc theo tên hoặc ID
+    const matchesSearch = fullName.includes(searchTermLower) || employeeId.includes(searchTermLower)
+    
+    // Lọc theo phòng ban
+    const matchesDepartment = departmentFilter === "all" || employee.department?._id === departmentFilter
+    
+    // Lọc theo ngày đăng ký (trước hoặc bằng ngày được chọn)
+    const registrationDate = employee.registrationDate ? new Date(employee.registrationDate) : null
+    const selectedDate = new Date(date)
+    selectedDate.setHours(23, 59, 59, 999) // Đặt thời gian là cuối ngày để bao gồm cả ngày được chọn
+    
+    const matchesDate = !registrationDate || registrationDate <= selectedDate
+    
+    return matchesSearch && matchesDepartment && matchesDate
   })
 
   /**
    * Mở modal chỉnh sửa nhân viên
-   * @param {number} employeeId - ID của nhân viên cần chỉnh sửa
+   * @param {string} employeeId - ID của nhân viên cần chỉnh sửa
    */
   const openEditModal = (employeeId) => {
     setSelectedEmployeeId(employeeId)
@@ -75,19 +91,19 @@ export function EmployeeManagementTable() {
     if (!shift) return null
 
     switch (shift) {
-      case "morning":
+      case "Ca sáng":
         return (
           <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
             Ca Sáng
           </Badge>
         )
-      case "afternoon":
+      case "Ca chiều":
         return (
           <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
             Ca Chiều
           </Badge>
         )
-      case "fullday":
+      case "Cả ngày":
         return (
           <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
             Cả Ngày
@@ -104,30 +120,23 @@ export function EmployeeManagementTable() {
    */
   const prepareExcelData = () => {
     return filteredEmployees.map((employee) => {
-      // Chuyển đổi các badge thành text để xuất ra Excel
-      const getShiftText = (shift) => {
-        if (!shift) return ""
-        switch (shift) {
-          case "morning":
-            return "Ca Sáng"
-          case "afternoon":
-            return "Ca Chiều"
-          case "fullday":
-            return "Cả Ngày"
-          default:
-            return ""
-        }
-      }
-
       return {
-        "Mã Nhân Viên": employee.id,
-        "Họ Tên": employee.name || "Chưa có tên",
-        "Phòng Ban": employee.department || "-",
-        "Vị Trí": employee.position || "-",
-        "Ca Làm": getShiftText(employee.shift),
+        "Mã Nhân Viên": employee._id,
+        "Họ Tên": employee.name || "-",
+        "Phòng Ban": employee.department?.name || "-",
+        "Vị Trí": employee.position?.name || "-",
+        "Ca Làm": employee.shift || "-",
         "Thời Gian Đăng Ký": employee.faceRegistrationTime || "-",
       }
     })
+  }
+
+  if (isLoading) {
+    return <div>Đang tải...</div>
+  }
+
+  if (error) {
+    return <div>Có lỗi xảy ra: {error}</div>
   }
 
   // Format ngày hiện tại
@@ -158,8 +167,8 @@ export function EmployeeManagementTable() {
             <SelectContent>
               <SelectItem value="all">Tất Cả Phòng Ban</SelectItem>
               {departments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
+                <SelectItem key={dept._id} value={dept._id}>
+                  {dept.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -223,11 +232,11 @@ export function EmployeeManagementTable() {
               </TableHeader>
               <TableBody>
                 {filteredEmployees.map((employee) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>{employee.id}</TableCell>
-                    <TableCell className="font-medium">{employee.name || "Chưa có tên"}</TableCell>
-                    <TableCell>{employee.department || "-"}</TableCell>
-                    <TableCell>{employee.position || "-"}</TableCell>
+                  <TableRow key={employee._id}>
+                    <TableCell>{employee.employeeId}</TableCell>
+                    <TableCell className="font-medium">{employee.fullName || "-"}</TableCell>
+                    <TableCell>{employee.department?.name || "-"}</TableCell>
+                    <TableCell>{employee.position?.name || "-"}</TableCell>
                     <TableCell>{getShiftBadge(employee.shift)}</TableCell>
                     <TableCell>
                       <Avatar className="h-12 w-12">
@@ -247,11 +256,15 @@ export function EmployeeManagementTable() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell>{employee.faceRegistrationTime || "-"}</TableCell>
+                    <TableCell>{employee.registrationDate || "-"}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         {/* Nút sửa thông tin nhân viên */}
-                        <Button variant="outline" size="sm" onClick={() => openEditModal(employee.id)}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => router.push(`/dashboard/employees/${employee.employeeId}/edit`)}
+                        >
                           <Pencil className="h-4 w-4 mr-1" />
                           Sửa
                         </Button>
@@ -259,7 +272,7 @@ export function EmployeeManagementTable() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/employees/${employee.id}`)}
+                          onClick={() => router.push(`/dashboard/employees/${employee.employeeId}`)}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           Chi tiết

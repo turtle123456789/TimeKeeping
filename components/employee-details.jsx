@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label"
  * @param {Object} props.employee - Thông tin nhân viên
  */
 export function EmployeeDetails({ employee }) {
+  console.log("Employee: ", employee)
   const { updateEmployee } = useEmployees()
   const [profileImage, setProfileImage] = useState(null) // Ảnh đại diện mới
   const [isUploading, setIsUploading] = useState(false) // Trạng thái đang tải lên
@@ -46,7 +47,7 @@ export function EmployeeDetails({ employee }) {
       setTimeout(() => {
         const imageUrl = URL.createObjectURL(file)
         setProfileImage(imageUrl)
-        updateEmployee(employee.id, { image: imageUrl })
+        updateEmployee(employee.employeeId, { image: imageUrl })
         setIsUploading(false)
       }, 1000)
     }
@@ -61,11 +62,11 @@ export function EmployeeDetails({ employee }) {
     if (!shiftKey) return "Chưa có ca làm"
 
     switch (shiftKey) {
-      case "morning":
+      case "Ca sáng":
         return SHIFTS.morning.name
-      case "afternoon":
+      case "Ca chiều":
         return SHIFTS.afternoon.name
-      case "fullday":
+      case "Cả ngày":
         return SHIFTS.fullday.name
       default:
         return "Chưa có ca làm"
@@ -81,11 +82,11 @@ export function EmployeeDetails({ employee }) {
     if (!shiftKey) return ""
 
     switch (shiftKey) {
-      case "morning":
+      case "Ca sáng":
         return `${SHIFTS.morning.startTime} - ${SHIFTS.morning.endTime}`
-      case "afternoon":
+      case "Ca chiều":
         return `${SHIFTS.afternoon.startTime} - ${SHIFTS.afternoon.endTime}`
-      case "fullday":
+      case "Cả ngày":
         return `${SHIFTS.fullday.startTime} - ${SHIFTS.fullday.endTime}`
       default:
         return ""
@@ -104,9 +105,9 @@ export function EmployeeDetails({ employee }) {
             <Avatar className="h-32 w-32">
               <AvatarImage
                 src={profileImage || employee.image || "/placeholder.svg?height=128&width=128"}
-                alt={employee.name || "Nhân viên mới"}
+                alt={employee.fullName || "Nhân viên mới"}
               />
-              <AvatarFallback>{employee.name ? employee.name.substring(0, 2).toUpperCase() : "NV"}</AvatarFallback>
+              <AvatarFallback>{employee.fullName || "NV"}</AvatarFallback>
             </Avatar>
             {/* Nút chỉnh sửa ảnh đại diện */}
             <Dialog>
@@ -138,10 +139,10 @@ export function EmployeeDetails({ employee }) {
             </Dialog>
           </div>
           <div className="text-center">
-            <h3 className="text-xl font-semibold">{employee.name || "Nhân viên mới"}</h3>
-            <p className="text-muted-foreground">{employee.position || "Chưa có vị trí"}</p>
+            <h3 className="text-xl font-semibold">{employee.fullName || "Nhân viên mới"}</h3>
+            <p className="text-muted-foreground">{employee.position.name || "Chưa có vị trí"}</p>
           </div>
-          <Badge>{employee.department || "Chưa có phòng ban"}</Badge>
+          <Badge>{employee.department.name || "Chưa có phòng ban"}</Badge>
         </div>
 
         {/* Phần thông tin liên hệ và công việc */}
@@ -167,13 +168,13 @@ export function EmployeeDetails({ employee }) {
           {employee.department && (
             <div className="flex items-center space-x-3">
               <Building className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.department}</span>
+              <span>{employee.department.name}</span>
             </div>
           )}
           {employee.position && (
             <div className="flex items-center space-x-3">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.position}</span>
+              <span>{employee.position.name}</span>
             </div>
           )}
           {employee.shift && (

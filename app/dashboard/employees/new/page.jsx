@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function NewEmployeePage() {
   const router = useRouter()
-  const { employees, updateEmployee, departments, positions, addDepartment, addPosition } = useEmployees()
+  const {  departments, positions, addDepartment, addPosition, addEmployee } = useEmployees()
 
   // State cho form
   const [formData, setFormData] = useState({
@@ -104,26 +104,37 @@ export default function NewEmployeePage() {
   }
 
   // Xử lý submit form
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
-
+    console.log(formData);
+    
     try {
-      // Tạo ID mới cho nhân viên
-      const newId = Math.max(...employees.map((emp) => emp.id), 100000) + 1
-
       // Chuẩn bị dữ liệu nhân viên mới
       const newEmployee = {
-        id: newId,
-        ...formData,
+        employeeId: formData.employeeId || `NV${Date.now()}`,
+        fullName: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        position: formData.position,
+        joinDate: formData.joinDate,
+        status: "active",
+        shift: formData.shift,
         image: profileImage || "/placeholder.svg?height=200&width=200",
-        status: "new",
-        faceRegistrationTime: new Date().toLocaleString("vi-VN"),
+        faceImage: profileImage || "/placeholder.svg?height=200&width=200",
+        faceRegistrationTime: new Date().toISOString(),
+        salary: {
+          baseSalary: 0,
+          hourlyRate: 0,
+          overtimeRate: 0,
+          bonus: 0
+        }
       }
 
-      // Thêm nhân viên mới vào danh sách
-      updateEmployee(newId, newEmployee)
+      // Gọi API thêm nhân viên mới
+      await addEmployee(newEmployee)
 
       // Chuyển hướng đến trang quản lý nhân viên
       router.push("/dashboard/management")
@@ -222,13 +233,13 @@ export default function NewEmployeePage() {
                         <SelectValue placeholder="Chọn ca làm việc" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="morning">
+                        <SelectItem value="Ca sáng">
                           {SHIFTS.morning.name} ({SHIFTS.morning.startTime} - {SHIFTS.morning.endTime})
                         </SelectItem>
-                        <SelectItem value="afternoon">
+                        <SelectItem value="Ca chiều">
                           {SHIFTS.afternoon.name} ({SHIFTS.afternoon.startTime} - {SHIFTS.afternoon.endTime})
                         </SelectItem>
-                        <SelectItem value="fullday">
+                        <SelectItem value="Cả ngày">  
                           {SHIFTS.fullday.name} ({SHIFTS.fullday.startTime} - {SHIFTS.fullday.endTime})
                         </SelectItem>
                       </SelectContent>
@@ -264,8 +275,8 @@ export default function NewEmployeePage() {
                         </SelectTrigger>
                         <SelectContent>
                           {departments.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
-                              {dept}
+                            <SelectItem key={dept._id} value={dept._id}>
+                              {dept.name}
                             </SelectItem>
                           ))}
                           <SelectItem value="add_new">+ Thêm phòng ban mới</SelectItem>
@@ -301,8 +312,8 @@ export default function NewEmployeePage() {
                         </SelectTrigger>
                         <SelectContent>
                           {positions.map((pos) => (
-                            <SelectItem key={pos} value={pos}>
-                              {pos}
+                            <SelectItem key={pos._id} value={pos._id}>
+                              {pos.name}
                             </SelectItem>
                           ))}
                           <SelectItem value="add_new">+ Thêm vị trí mới</SelectItem>

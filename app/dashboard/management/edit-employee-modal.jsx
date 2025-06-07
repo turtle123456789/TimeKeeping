@@ -53,6 +53,7 @@ export function EditEmployeeModal({ isOpen, onClose, employeeId }) {
 
   // Lấy thông tin nhân viên khi component được tải hoặc employeeId thay đổi
   useEffect(() => {
+    console.log("Set data continue: ", employeeId, isOpen)
     if (employeeId && isOpen) {
       const employee = getEmployeeById(employeeId)
       if (employee) {
@@ -70,7 +71,7 @@ export function EditEmployeeModal({ isOpen, onClose, employeeId }) {
         setSuccess(false) // Reset thông báo thành công
       }
     }
-  }, [employeeId, isOpen, getEmployeeById])
+  }, [])
 
   // Xử lý thay đổi input
   const handleInputChange = (e) => {
@@ -287,8 +288,8 @@ export function EditEmployeeModal({ isOpen, onClose, employeeId }) {
                     </SelectTrigger>
                     <SelectContent>
                       {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept}
+                        <SelectItem key={dept._id} value={dept._id}>
+                          {dept.name}
                         </SelectItem>
                       ))}
                       <SelectItem value="add_new">+ Thêm phòng ban mới</SelectItem>
@@ -324,8 +325,8 @@ export function EditEmployeeModal({ isOpen, onClose, employeeId }) {
                     </SelectTrigger>
                     <SelectContent>
                       {positions.map((pos) => (
-                        <SelectItem key={pos} value={pos}>
-                          {pos}
+                        <SelectItem key={pos._id} value={pos._id}>
+                          {pos.name}
                         </SelectItem>
                       ))}
                       <SelectItem value="add_new">+ Thêm vị trí mới</SelectItem>

@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 /**
  * Component trang chi tiết nhân viên
@@ -32,30 +33,53 @@ import {
  * @param {string} props.params.id - ID của nhân viên
  */
 export default function EmployeePage({ params }) {
-  const employeeId = Number.parseInt(params.id)
+  const employeeId = params.id
   const { getEmployeeById, deleteEmployee } = useEmployees()
-  const [employee, setEmployee] = useState(undefined)
+  const [employee, setEmployee] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   // Lấy thông tin nhân viên khi component được tải
   useEffect(() => {
-    const emp = getEmployeeById(employeeId)
-    if (emp) {
-      setEmployee(emp)
+    const fetchEmployee = async () => {
+      try {
+        setIsLoading(true)
+        const data = await getEmployeeById(employeeId)
+        setEmployee(data)
+      } catch (error) {
+        console.error("Error fetching employee:", error)
+        toast.error("Không thể tải thông tin nhân viên")
+        router.push("/dashboard/employees")
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [employeeId, getEmployeeById])
 
-  // Nếu không tìm thấy nhân viên, hiển thị trang 404
-  if (!employee) {
+    fetchEmployee()
+  }, [])
+
+  // Nếu đang tải, hiển thị loading
+  if (isLoading) {
     return <div className="p-8 text-center">Đang tải thông tin nhân viên...</div>
+  }
+
+  // Nếu không tìm thấy nhân viên, hiển thị thông báo
+  if (!employee) {
+    return <div className="p-8 text-center">Không tìm thấy thông tin nhân viên</div>
   }
 
   /**
    * Xử lý sự kiện xóa nhân viên
    */
-  const handleDelete = () => {
-    deleteEmployee(employeeId)
-    router.push("/dashboard/employees")
+  const handleDelete = async () => {
+    try {
+      await deleteEmployee(employeeId)
+      toast.success("Xóa nhân viên thành công")
+      router.push("/dashboard/management")
+    } catch (error) {
+      console.error("Error deleting employee:", error)
+      toast.error("Không thể xóa nhân viên")
+    }
   }
 
   return (
@@ -67,8 +91,8 @@ export default function EmployeePage({ params }) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold">{employee.name || "Nhân viên mới"}</h1>
-          <Badge className="ml-2">ID: {employee.id}</Badge>
+          <h1 className="text-3xl font-bold">{employee.fullName || "Nhân viên mới"}</h1>
+          <Badge className="ml-2">ID: {employee.employeeId}</Badge>
         </div>
         <div className="flex gap-2">
           {/* Nút chỉnh sửa nhân viên */}
