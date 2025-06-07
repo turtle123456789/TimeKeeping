@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function DepartmentManagement() {
   const {
-    departmentPositions,
+    departments,
+    positions,
     getAllDepartments,
     getAllPositions,
     getPositionsByDepartment,
@@ -48,64 +49,102 @@ export function DepartmentManagement() {
     updatePosition,
     deleteDepartment,
     deletePosition,
+    isLoading,
+    error,
   } = useDepartments()
 
   // State cho thêm bộ phận mới
   const [newDepartment, setNewDepartment] = useState("")
   const [showAddDepartmentDialog, setShowAddDepartmentDialog] = useState(false)
+  const [isAddingDepartment, setIsAddingDepartment] = useState(false)
 
   // State cho thêm vị trí mới
   const [newPosition, setNewPosition] = useState("")
   const [selectedDepartment, setSelectedDepartment] = useState("")
   const [showAddPositionDialog, setShowAddPositionDialog] = useState(false)
+  const [isAddingPosition, setIsAddingPosition] = useState(false)
 
   // State cho chỉnh sửa
   const [editingDepartment, setEditingDepartment] = useState(null)
   const [editingPosition, setEditingPosition] = useState(null)
   const [editValue, setEditValue] = useState("")
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // State cho tìm kiếm và lọc
   const [searchTerm, setSearchTerm] = useState("")
   const [filterDepartment, setFilterDepartment] = useState("all")
+  const [departmentPositions, setDepartmentPositions] = useState({})
 
   // Lấy danh sách bộ phận và vị trí
-  const departments = getAllDepartments()
-  const positions = getAllPositions()
+  const allDepartments = getAllDepartments()
+  const allPositions = getAllPositions()
 
   // Lọc bộ phận theo từ khóa tìm kiếm
-  const filteredDepartments = departments.filter((dept) => dept.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredDepartments = allDepartments.filter((dept) => 
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   // Lọc vị trí theo bộ phận được chọn
-  const filteredPositions = filterDepartment === "all" ? positions : getPositionsByDepartment(filterDepartment)
+  const filteredPositions = filterDepartment === "all" 
+    ? allPositions 
+    : allPositions.filter((pos) => pos.department._id === filterDepartment)
+
+  // Load positions by department when filter changes
+  useEffect(() => {
+    if (filterDepartment !== "all") {
+      getPositionsByDepartment(filterDepartment).then((positions) => {
+        setDepartmentPositions((prev) => ({
+          ...prev,
+          [filterDepartment]: positions,
+        }))
+      })
+    }
+  }, [filterDepartment, getPositionsByDepartment])
 
   // Xử lý thêm bộ phận mới
-  const handleAddDepartment = () => {
+  const handleAddDepartment = async () => {
     if (newDepartment.trim()) {
-      addDepartment(newDepartment.trim())
-      setNewDepartment("")
-      setShowAddDepartmentDialog(false)
+      try {
+        setIsAddingDepartment(true)
+        await addDepartment(newDepartment.trim())
+        setNewDepartment("")
+        setShowAddDepartmentDialog(false)
+      } catch (err) {
+        console.error("Error adding department:", err)
+      } finally {
+        setIsAddingDepartment(false)
+      }
     }
   }
 
   // Xử lý thêm vị trí mới
-  const handleAddPosition = () => {
+  const handleAddPosition = async () => {
     if (newPosition.trim() && selectedDepartment) {
-      addPosition(selectedDepartment, newPosition.trim())
-      setNewPosition("")
-      setShowAddPositionDialog(false)
+      try {
+        setIsAddingPosition(true)
+        await addPosition(newPosition.trim(), selectedDepartment)
+        setNewPosition("")
+        setSelectedDepartment("")
+        setShowAddPositionDialog(false)
+      } catch (err) {
+        console.error("Error adding position:", err)
+      } finally {
+        setIsAddingPosition(false)
+      }
     }
   }
 
   // Xử lý bắt đầu chỉnh sửa bộ phận
   const startEditDepartment = (department) => {
     setEditingDepartment(department)
-    setEditValue(department)
+    setEditValue(department.name)
   }
 
   // Xử lý bắt đầu chỉnh sửa vị trí
   const startEditPosition = (position) => {
     setEditingPosition(position)
-    setEditValue(position)
+    setEditValue(position.name)
   }
 
   // Xử lý hủy chỉnh sửa
@@ -116,41 +155,77 @@ export function DepartmentManagement() {
   }
 
   // Xử lý lưu chỉnh sửa bộ phận
-  const saveEditDepartment = () => {
+  const saveEditDepartment = async () => {
     if (editValue.trim() && editingDepartment) {
-      updateDepartment(editingDepartment, editValue.trim())
-      setEditingDepartment(null)
+      try {
+        setIsUpdating(true)
+        await updateDepartment(editingDepartment._id, editValue.trim())
+        setEditingDepartment(null)
+        setEditValue("")
+      } catch (err) {
+        console.error("Error updating department:", err)
+      } finally {
+        setIsUpdating(false)
+      }
     }
   }
 
   // Xử lý lưu chỉnh sửa vị trí
-  const saveEditPosition = () => {
+  const saveEditPosition = async () => {
     if (editValue.trim() && editingPosition) {
-      // Tìm bộ phận chứa vị trí này
-      for (const dept of departmentPositions) {
-        if (dept.positions.includes(editingPosition)) {
-          updatePosition(dept.department, editingPosition, editValue.trim())
-          break
-        }
+      try {
+        setIsUpdating(true)
+        await updatePosition(editingPosition._id, editValue.trim())
+        setEditingPosition(null)
+        setEditValue("")
+      } catch (err) {
+        console.error("Error updating position:", err)
+      } finally {
+        setIsUpdating(false)
       }
-      setEditingPosition(null)
     }
   }
 
   // Xử lý xóa bộ phận
-  const handleDeleteDepartment = (department) => {
-    deleteDepartment(department)
+  const handleDeleteDepartment = async (department) => {
+    try {
+      setIsDeleting(true)
+      await deleteDepartment(department._id)
+    } catch (err) {
+      console.error("Error deleting department:", err)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // Xử lý xóa vị trí
-  const handleDeletePosition = (position) => {
-    // Tìm bộ phận chứa vị trí này
-    for (const dept of departmentPositions) {
-      if (dept.positions.includes(position)) {
-        deletePosition(dept.department, position)
-        break
-      }
+  const handleDeletePosition = async (position) => {
+    try {
+      setIsDeleting(true)
+      await deletePosition(position._id)
+    } catch (err) {
+      console.error("Error deleting position:", err)
+    } finally {
+      setIsDeleting(false)
     }
+  }
+
+  // Hiển thị loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  // Hiển thị error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">Có lỗi xảy ra: {error}</div>
+      </div>
+    )
   }
 
   return (
@@ -214,14 +289,24 @@ export function DepartmentManagement() {
                       onChange={(e) => setNewDepartment(e.target.value)}
                       className="col-span-3"
                       placeholder="Nhập tên bộ phận"
+                      disabled={isAddingDepartment}
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowAddDepartmentDialog(false)}>
+                  <Button variant="outline" onClick={() => setShowAddDepartmentDialog(false)} disabled={isAddingDepartment}>
                     Hủy
                   </Button>
-                  <Button onClick={handleAddDepartment}>Thêm Bộ Phận</Button>
+                  <Button onClick={handleAddDepartment} disabled={isAddingDepartment}>
+                    {isAddingDepartment ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang thêm...
+                      </>
+                    ) : (
+                      "Thêm Bộ Phận"
+                    )}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -251,59 +336,91 @@ export function DepartmentManagement() {
                       </TableRow>
                     ) : (
                       filteredDepartments.map((department) => {
-                        const departmentPositions = getPositionsByDepartment(department)
+                        const departmentPositions = positions.filter((pos) => pos.department._id === department._id)
 
                         return (
-                          <TableRow key={department}>
+                          <TableRow key={department._id}>
                             <TableCell className="font-medium">
-                              {editingDepartment === department ? (
+                              {editingDepartment?._id === department._id ? (
                                 <div className="flex items-center space-x-2">
                                   <Input
                                     value={editValue}
                                     onChange={(e) => setEditValue(e.target.value)}
                                     className="h-8"
+                                    disabled={isUpdating}
                                   />
-                                  <Button size="icon" variant="ghost" onClick={saveEditDepartment} className="h-8 w-8">
-                                    <Save className="h-4 w-4" />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={saveEditDepartment}
+                                    className="h-8 w-8"
+                                    disabled={isUpdating}
+                                  >
+                                    {isUpdating ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                    ) : (
+                                      <Save className="h-4 w-4" />
+                                    )}
                                   </Button>
-                                  <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={cancelEdit}
+                                    className="h-8 w-8"
+                                    disabled={isUpdating}
+                                  >
                                     <X className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ) : (
                                 <div className="flex items-center">
                                   <Building className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  {department}
+                                  {department.name}
                                 </div>
                               )}
                             </TableCell>
                             <TableCell>{departmentPositions.length} vị trí</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end space-x-2">
-                                <Button size="sm" variant="ghost" onClick={() => startEditDepartment(department)}>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEditDepartment(department)}
+                                  disabled={isUpdating || isDeleting}
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
-                                    <Button size="sm" variant="ghost" className="text-red-500">
-                                      <Trash2 className="h-4 w-4" />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-red-500"
+                                      disabled={isUpdating || isDeleting}
+                                    >
+                                      {isDeleting ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                      ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                      )}
                                     </Button>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
                                       <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                        Bạn có chắc chắn muốn xóa bộ phận "{department}"? Hành động này không thể hoàn
-                                        tác.
+                                        Bạn có chắc chắn muốn xóa bộ phận "{department.name}"? Hành động này không thể
+                                        hoàn tác.
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
-                                      <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                      <AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
                                       <AlertDialogAction
                                         onClick={() => handleDeleteDepartment(department)}
                                         className="bg-red-500 hover:bg-red-600"
+                                        disabled={isDeleting}
                                       >
-                                        Xóa
+                                        {isDeleting ? "Đang xóa..." : "Xóa"}
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
@@ -372,9 +489,9 @@ export function DepartmentManagement() {
                           <SelectValue placeholder="Chọn bộ phận" />
                         </SelectTrigger>
                         <SelectContent>
-                          {departments.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
-                              {dept}
+                          {allDepartments.map((dept) => (
+                            <SelectItem key={dept._id} value={dept._id}>
+                              {dept.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -391,14 +508,24 @@ export function DepartmentManagement() {
                       onChange={(e) => setNewPosition(e.target.value)}
                       className="col-span-3"
                       placeholder="Nhập tên vị trí"
+                      disabled={isAddingPosition}
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowAddPositionDialog(false)}>
+                  <Button variant="outline" onClick={() => setShowAddPositionDialog(false)} disabled={isAddingPosition}>
                     Hủy
                   </Button>
-                  <Button onClick={handleAddPosition}>Thêm Vị Trí</Button>
+                  <Button onClick={handleAddPosition} disabled={isAddingPosition}>
+                    {isAddingPosition ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang thêm...
+                      </>
+                    ) : (
+                      "Thêm Vị Trí"
+                    )}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -420,89 +547,114 @@ export function DepartmentManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {positions.length === 0 ? (
+                    {allPositions.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={3} className="text-center py-10 text-muted-foreground">
                           Chưa có vị trí nào
                         </TableCell>
                       </TableRow>
                     ) : (
-                      positions
-                        .filter((position) => position.toLowerCase().includes(searchTerm.toLowerCase()))
-                        .map((position) => {
-                          // Tìm các bộ phận chứa vị trí này
-                          const deptWithPosition = departmentPositions
-                            .filter((dept) => dept.positions.includes(position))
-                            .map((dept) => dept.department)
-
-                          return (
-                            <TableRow key={position}>
-                              <TableCell className="font-medium">
-                                {editingPosition === position ? (
-                                  <div className="flex items-center space-x-2">
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      className="h-8"
-                                    />
-                                    <Button size="icon" variant="ghost" onClick={saveEditPosition} className="h-8 w-8">
+                      allPositions
+                        .filter((position) => position.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                        .map((position) => (
+                          <TableRow key={position._id}>
+                            <TableCell className="font-medium">
+                              {editingPosition?._id === position._id ? (
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    className="h-8"
+                                    disabled={isUpdating}
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={saveEditPosition}
+                                    className="h-8 w-8"
+                                    disabled={isUpdating}
+                                  >
+                                    {isUpdating ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                    ) : (
                                       <Save className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" onClick={cancelEdit} className="h-8 w-8">
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center">
-                                    <Briefcase className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    {position}
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-2">
-                                  {deptWithPosition.map((dept) => (
-                                    <Badge key={dept} variant="outline">
-                                      {dept}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end space-x-2">
-                                  <Button size="sm" variant="ghost" onClick={() => startEditPosition(position)}>
-                                    <Edit className="h-4 w-4" />
+                                    )}
                                   </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button size="sm" variant="ghost" className="text-red-500">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Bạn có chắc chắn muốn xóa vị trí "{position}"? Hành động này không thể hoàn
-                                          tác.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => handleDeletePosition(position)}
-                                          className="bg-red-500 hover:bg-red-600"
-                                        >
-                                          Xóa
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={cancelEdit}
+                                    className="h-8 w-8"
+                                    disabled={isUpdating}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })
+                              ) : (
+                                <div className="flex items-center">
+                                  <Briefcase className="mr-2 h-4 w-4 text-muted-foreground" />
+                                  {position.name}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-2">
+                                {position.department && (
+                                  <Badge variant="outline">
+                                    {position.department.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEditPosition(position)}
+                                  disabled={isUpdating || isDeleting}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-red-500"
+                                      disabled={isUpdating || isDeleting}
+                                    >
+                                      {isDeleting ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                      ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Bạn có chắc chắn muốn xóa vị trí "{position.name}"? Hành động này không thể
+                                        hoàn tác.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePosition(position)}
+                                        className="bg-red-500 hover:bg-red-600"
+                                        disabled={isDeleting}
+                                      >
+                                        {isDeleting ? "Đang xóa..." : "Xóa"}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
                     )}
                   </TableBody>
                 </Table>
@@ -529,9 +681,9 @@ export function DepartmentManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tất cả bộ phận</SelectItem>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept}
+                      {allDepartments.map((dept) => (
+                        <SelectItem key={dept._id} value={dept._id}>
+                          {dept.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -555,35 +707,25 @@ export function DepartmentManagement() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredPositions.map((position) => {
-                        // Tìm các bộ phận chứa vị trí này
-                        const deptWithPosition =
-                          filterDepartment === "all"
-                            ? departmentPositions
-                                .filter((dept) => dept.positions.includes(position))
-                                .map((dept) => dept.department)
-                            : [filterDepartment]
-
-                        return (
-                          <TableRow key={position}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center">
-                                <Briefcase className="mr-2 h-4 w-4 text-muted-foreground" />
-                                {position}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-2">
-                                {deptWithPosition.map((dept) => (
-                                  <Badge key={dept} variant="outline">
-                                    {dept}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })
+                      filteredPositions.map((position) => (
+                        <TableRow key={position._id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center">
+                              <Briefcase className="mr-2 h-4 w-4 text-muted-foreground" />
+                              {position.name}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              {position.department && (
+                                <Badge variant="outline">
+                                  {position.department.name}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
                   </TableBody>
                 </Table>

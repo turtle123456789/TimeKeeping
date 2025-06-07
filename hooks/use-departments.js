@@ -5,34 +5,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { toast } from "sonner"
 
-// Dữ liệu mẫu cho bộ phận và vị trí
-const initialDepartmentPositions = [
-  {
-    department: "CNTT",
-    positions: ["Lập Trình Viên", "Quản Lý Dự Án", "Kỹ Sư Hệ Thống", "Kiểm Thử Phần Mềm"],
-  },
-  {
-    department: "Thiết Kế",
-    positions: ["Thiết Kế Viên", "Thiết Kế UX/UI", "Thiết Kế Đồ Họa"],
-  },
-  {
-    department: "Nhân Sự",
-    positions: ["Quản Lý", "Chuyên Viên Tuyển Dụng", "Chuyên Viên Đào Tạo"],
-  },
-  {
-    department: "Tài Chính",
-    positions: ["Kế Toán", "Chuyên Viên Tài Chính", "Kiểm Toán Viên"],
-  },
-  {
-    department: "Marketing",
-    positions: ["Marketing", "Chuyên Viên Truyền Thông", "Chuyên Viên SEO"],
-  },
-  {
-    department: "Hành Chính",
-    positions: ["Nhân Viên", "Thư Ký", "Lễ Tân"],
-  },
-]
+// API endpoints
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+const DEPARTMENTS_ENDPOINT = `${API_BASE_URL}/departments`
+const POSITIONS_ENDPOINT = `${API_BASE_URL}/positions`
 
 /**
  * Hook quản lý dữ liệu bộ phận và vị trí
@@ -40,24 +18,63 @@ const initialDepartmentPositions = [
  */
 export function useDepartments() {
   // State lưu trữ danh sách bộ phận và vị trí
-  const [departmentPositions, setDepartmentPositions] = useState([])
-  // State để theo dõi xem dữ liệu đã được khởi tạo chưa
-  const [initialized, setInitialized] = useState(false)
+  const [departments, setDepartments] = useState([])
+  const [positions, setPositions] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Khởi tạo dữ liệu ban đầu
-  useEffect(() => {
-    if (!initialized) {
-      setDepartmentPositions(initialDepartmentPositions)
-      setInitialized(true)
+  // Fetch departments data
+  const fetchDepartments = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(DEPARTMENTS_ENDPOINT)
+      if (!response.ok) {
+        throw new Error("Failed to fetch departments")
+      }
+      const result = await response.json()
+      setDepartments(result.data)
+      setError(null)
+    } catch (err) {
+      console.error("Error fetching departments:", err)
+      setError(err.message)
+      toast.error("Không thể tải danh sách bộ phận")
+    } finally {
+      setIsLoading(false)
     }
-  }, [initialized])
+  }
+
+  // Fetch positions data
+  const fetchPositions = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(POSITIONS_ENDPOINT)
+      if (!response.ok) {
+        throw new Error("Failed to fetch positions")
+      }
+      const result = await response.json()
+      setPositions(result.data)
+      setError(null)
+    } catch (err) {
+      console.error("Error fetching positions:", err)
+      setError(err.message)
+      toast.error("Không thể tải danh sách vị trí")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Load data on mount
+  useEffect(() => {
+    fetchDepartments()
+    fetchPositions()
+  }, [])
 
   /**
    * Lấy danh sách tất cả các bộ phận
    * @returns {Array} Danh sách các bộ phận
    */
   const getAllDepartments = () => {
-    return departmentPositions.map((item) => item.department)
+    return departments
   }
 
   /**
@@ -65,109 +82,216 @@ export function useDepartments() {
    * @returns {Array} Danh sách các vị trí
    */
   const getAllPositions = () => {
-    const allPositions = new Set()
-    departmentPositions.forEach((item) => {
-      item.positions.forEach((position) => {
-        allPositions.add(position)
-      })
-    })
-    return Array.from(allPositions)
+    return positions
   }
 
   /**
    * Lấy danh sách vị trí theo bộ phận
-   * @param {string} department - Tên bộ phận
+   * @param {string} departmentId - ID của bộ phận
    * @returns {Array} Danh sách vị trí thuộc bộ phận
    */
-  const getPositionsByDepartment = (department) => {
-    const deptItem = departmentPositions.find((item) => item.department === department)
-    return deptItem ? deptItem.positions : []
-  }
-
-  /**
-   * Thêm bộ phận mới
-   * @param {string} department - Tên bộ phận mới
-   */
-  const addDepartment = (department) => {
-    if (!departmentPositions.some((item) => item.department === department)) {
-      setDepartmentPositions((prev) => [...prev, { department, positions: [] }])
+  const getPositionsByDepartment = async (departmentId) => {
+    try {
+      const response = await fetch(`${POSITIONS_ENDPOINT}/department/${departmentId}`)
+      if (!response.ok) {
+        throw new Error("Failed to fetch positions by department")
+      }
+      const data = await response.json()
+      return data
+    } catch (err) {
+      console.error("Error fetching positions by department:", err)
+      toast.error("Không thể tải danh sách vị trí của bộ phận")
+      return []
     }
   }
 
   /**
-   * Thêm vị trí mới cho bộ phận
-   * @param {string} department - Tên bộ phận
-   * @param {string} position - Tên vị trí mới
+   * Thêm bộ phận mới
+   * @param {string} name - Tên bộ phận mới
    */
-  const addPosition = (department, position) => {
-    setDepartmentPositions((prev) =>
-      prev.map((item) =>
-        item.department === department && !item.positions.includes(position)
-          ? { ...item, positions: [...item.positions, position] }
-          : item,
-      ),
-    )
+  const addDepartment = async (name) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(DEPARTMENTS_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add department")
+      }
+
+      // Refresh departments data after adding
+      await fetchDepartments()
+      toast.success("Thêm bộ phận thành công")
+    } catch (err) {
+      console.error("Error adding department:", err)
+      toast.error("Không thể thêm bộ phận mới")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  /**
+   * Thêm vị trí mới
+   * @param {string} name - Tên vị trí mới
+   * @param {string} departmentId - ID của bộ phận
+   */
+  const addPosition = async (name, departmentId) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(POSITIONS_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, department: departmentId }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add position")
+      }
+
+      // Refresh both departments and positions data after adding
+      await Promise.all([fetchDepartments(), fetchPositions()])
+      toast.success("Thêm vị trí thành công")
+    } catch (err) {
+      console.error("Error adding position:", err)
+      toast.error("Không thể thêm vị trí mới")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   /**
    * Cập nhật tên bộ phận
-   * @param {string} oldName - Tên bộ phận cũ
-   * @param {string} newName - Tên bộ phận mới
+   * @param {string} departmentId - ID của bộ phận
+   * @param {string} name - Tên mới của bộ phận
    */
-  const updateDepartment = (oldName, newName) => {
-    setDepartmentPositions((prev) =>
-      prev.map((item) => (item.department === oldName ? { ...item, department: newName } : item)),
-    )
+  const updateDepartment = async (departmentId, name) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${DEPARTMENTS_ENDPOINT}/${departmentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update department")
+      }
+
+      // Refresh departments data after updating
+      await fetchDepartments()
+      toast.success("Cập nhật bộ phận thành công")
+    } catch (err) {
+      console.error("Error updating department:", err)
+      toast.error("Không thể cập nhật bộ phận")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   /**
    * Cập nhật tên vị trí
-   * @param {string} department - Tên bộ phận
-   * @param {string} oldName - Tên vị trí cũ
-   * @param {string} newName - Tên vị trí mới
+   * @param {string} positionId - ID của vị trí
+   * @param {string} name - Tên mới của vị trí
    */
-  const updatePosition = (department, oldName, newName) => {
-    setDepartmentPositions((prev) =>
-      prev.map((item) =>
-        item.department === department
-          ? {
-              ...item,
-              positions: item.positions.map((pos) => (pos === oldName ? newName : pos)),
-            }
-          : item,
-      ),
-    )
+  const updatePosition = async (positionId, name) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${POSITIONS_ENDPOINT}/${positionId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update position")
+      }
+
+      // Refresh both departments and positions data after updating
+      await Promise.all([fetchDepartments(), fetchPositions()])
+      toast.success("Cập nhật vị trí thành công")
+    } catch (err) {
+      console.error("Error updating position:", err)
+      toast.error("Không thể cập nhật vị trí")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   /**
    * Xóa bộ phận
-   * @param {string} department - Tên bộ phận cần xóa
+   * @param {string} departmentId - ID của bộ phận cần xóa
    */
-  const deleteDepartment = (department) => {
-    setDepartmentPositions((prev) => prev.filter((item) => item.department !== department))
+  const deleteDepartment = async (departmentId) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${DEPARTMENTS_ENDPOINT}/${departmentId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete department")
+      }
+
+      // Refresh both departments and positions data after deleting
+      await Promise.all([fetchDepartments(), fetchPositions()])
+      toast.success("Xóa bộ phận thành công")
+    } catch (err) {
+      console.error("Error deleting department:", err)
+      toast.error("Không thể xóa bộ phận")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   /**
-   * Xóa vị trí khỏi bộ phận
-   * @param {string} department - Tên bộ phận
-   * @param {string} position - Tên vị trí cần xóa
+   * Xóa vị trí
+   * @param {string} positionId - ID của vị trí cần xóa
    */
-  const deletePosition = (department, position) => {
-    setDepartmentPositions((prev) =>
-      prev.map((item) =>
-        item.department === department
-          ? {
-              ...item,
-              positions: item.positions.filter((pos) => pos !== position),
-            }
-          : item,
-      ),
-    )
+  const deletePosition = async (positionId) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${POSITIONS_ENDPOINT}/${positionId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete position")
+      }
+
+      // Refresh both departments and positions data after deleting
+      await Promise.all([fetchDepartments(), fetchPositions()])
+      toast.success("Xóa vị trí thành công")
+    } catch (err) {
+      console.error("Error deleting position:", err)
+      toast.error("Không thể xóa vị trí")
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Trả về các hàm và dữ liệu
   return {
-    departmentPositions,
+    departments,
+    positions,
+    isLoading,
+    error,
     getAllDepartments,
     getAllPositions,
     getPositionsByDepartment,
