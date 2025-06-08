@@ -137,7 +137,7 @@ export default function EmployeePage({ params }) {
           {/* Thống kê hàng tháng */}
           <MonthlyStats employeeId={employeeId} />
           {/* Lịch sử chấm công */}
-          <AttendanceHistory employeeId={employeeId} />
+          <AttendanceHistory employeeId={employeeId} shift={employee.shift} />
         </div>
       </div>
     </div>

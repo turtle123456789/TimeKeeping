@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -12,106 +12,76 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 /**
- * Tạo dữ liệu mẫu cho lịch sử chấm công
- * @param {number} employeeId - ID của nhân viên
- * @returns {Array} Mảng dữ liệu chấm công
- */
-const generateAttendanceData = (employeeId) => {
-  const currentDate = new Date()
-  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6
-    const isPast = day <= currentDate.getDate()
-
-    // Xử lý ngày cuối tuần
-    if (isWeekend) {
-      return {
-        date: `${day.toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`,
-        checkIn: "-",
-        checkOut: "-",
-        hoursWorked: "-",
-        overtime: "-",
-        status: "weekend",
-        lateBy: "-",
-      }
-    }
-
-    // Xử lý ngày trong tương lai
-    if (!isPast) {
-      return {
-        date: `${day.toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`,
-        checkIn: "-",
-        checkOut: "-",
-        hoursWorked: "-",
-        overtime: "-",
-        status: "upcoming",
-        lateBy: "-",
-      }
-    }
-
-    // Tạo dữ liệu ngẫu nhiên cho ngày trong quá khứ
-    // Trạng thái ngẫu nhiên cho những ngày đã qua
-    const statuses = ["present", "late", "absent"]
-    const randomStatus = statuses[Math.floor(Math.random() * (employeeId === 3 ? 2 : 3))]
-
-    // Xử lý trường hợp vắng mặt
-    if (randomStatus === "absent") {
-      return {
-        date: `${day.toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`,
-        checkIn: "-",
-        checkOut: "-",
-        hoursWorked: "0",
-        overtime: "0",
-        status: "absent",
-        lateBy: "-",
-      }
-    }
-
-    const isLate = randomStatus === "late"
-
-    // Tạo giờ check-in ngẫu nhiên
-    const checkInHour = isLate ? 9 + Math.floor(Math.random() * 2) : 8
-    const checkInMinute = Math.floor(Math.random() * 60)
-    const checkIn = `${checkInHour.toString().padStart(2, "0")}:${checkInMinute.toString().padStart(2, "0")}`
-
-    // Tạo giờ check-out ngẫu nhiên
-    const workHours = 8 + Math.floor(Math.random() * 3)
-    const checkOutHour = checkInHour + workHours
-    const checkOutMinute = Math.floor(Math.random() * 60)
-    const checkOut = `${checkOutHour.toString().padStart(2, "0")}:${checkOutMinute.toString().padStart(2, "0")}`
-
-    // Tính toán số giờ làm việc và tăng ca
-    const hoursWorked = workHours + (checkOutMinute - checkInMinute) / 60
-    const overtime = Math.max(0, hoursWorked - 8).toFixed(1)
-    const lateBy = isLate ? `${checkInHour - 8}h ${checkInMinute}m` : "0"
-
-    return {
-      date: `${day.toString().padStart(2, "0")}/${(currentDate.getMonth() + 1).toString().padStart(2, "0")}/${currentDate.getFullYear()}`,
-      checkIn,
-      checkOut,
-      hoursWorked: hoursWorked.toFixed(1),
-      overtime,
-      status: randomStatus,
-      lateBy: isLate ? lateBy : "-",
-    }
-  })
-}
-
-/**
  * Component hiển thị lịch sử chấm công
  * @param {Object} props - Props của component
- * @param {number} props.employeeId - ID của nhân viên
+ * @param {string} props.employeeId - ID của nhân viên
+ * @param {string} props.shift - Ca làm việc
  */
-export function AttendanceHistory({ employeeId }) {
+export function AttendanceHistory({ employeeId, shift }) {
   // State để lưu tháng và năm hiện tại đang xem
-  const [month, setMonth] = useState(new Date().getMonth() + 1)
-  const [year, setYear] = useState(new Date().getFullYear())
+  const [currentDate, setCurrentDate] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear()
+  })
+  const [attendanceData, setAttendanceData] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Lấy dữ liệu chấm công
-  const attendanceData = generateAttendanceData(employeeId)
+  // Fetch dữ liệu chấm công
+  useEffect(() => {
+    const fetchAttendanceData = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(
+          `http://localhost:3001/api/checkins/history?employeeId=${employeeId}&shift=${shift}&month=${currentDate.month.toString().padStart(2, "0")}&year=${currentDate.year}`
+        )
+        const result = await response.json()
+        if (result.success) {
+          setAttendanceData(result.data)
+        }
+      } catch (error) {
+        console.error("Error fetching attendance data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAttendanceData()
+  }, [employeeId, shift, currentDate.month, currentDate.year])
+
+  /**
+   * Format thời gian từ ISO string
+   * @param {string} isoString - Thời gian dạng ISO string
+   * @returns {string} Thời gian đã format
+   */
+  const formatTime = (isoString) => {
+    if (!isoString) return "-"
+    const date = new Date(isoString)
+    return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+  }
+
+  /**
+   * Format thời gian đi muộn
+   * @param {Object} timeLate - Object chứa giờ và phút đi muộn
+   * @returns {string} Thời gian đi muộn đã format
+   */
+  const formatLateTime = (timeLate) => {
+    if (!timeLate || (timeLate.hours === 0 && timeLate.minutes === 0)) return "-"
+    return `${timeLate.hours}h ${timeLate.minutes}m`
+  }
+
+  /**
+   * Format số giờ làm việc
+   * @param {number|Object} totalHours - Số giờ làm việc
+   * @returns {string} Số giờ đã format
+   */
+  const formatTotalHours = (totalHours) => {
+    if (!totalHours || totalHours === 0) return "-"
+    if (typeof totalHours === "object") {
+      if (totalHours.hours === null || totalHours.minutes === null) return "-"
+      return `${totalHours.hours}h ${totalHours.minutes}m`
+    }
+    return `${totalHours} giờ`
+  }
 
   /**
    * Hiển thị badge tương ứng với trạng thái chấm công
@@ -120,15 +90,15 @@ export function AttendanceHistory({ employeeId }) {
    */
   const getStatusBadge = (status) => {
     switch (status) {
-      case "present":
+      case "Có mặt":
         return <Badge className="bg-green-500">Có Mặt</Badge>
-      case "late":
+      case "Đi muộn":
         return <Badge className="bg-yellow-500">Đi Muộn</Badge>
-      case "absent":
+      case "Vắng mặt":
         return <Badge className="bg-red-500">Vắng Mặt</Badge>
-      case "weekend":
+      case "Cuối Tuần":
         return <Badge variant="outline">Cuối Tuần</Badge>
-      case "upcoming":
+      case "Sắp tới":
         return <Badge variant="outline">Sắp Tới</Badge>
       default:
         return <Badge>Không Xác Định</Badge>
@@ -136,23 +106,21 @@ export function AttendanceHistory({ employeeId }) {
   }
 
   // Xử lý chuyển đến tháng trước
-  const previousMonth = () => {
-    if (month === 1) {
-      setMonth(12)
-      setYear(year - 1)
-    } else {
-      setMonth(month - 1)
-    }
+  const handlePreviousMonth = () => {
+    setCurrentDate(prev => {
+      const newMonth = prev.month === 1 ? 12 : prev.month - 1
+      const newYear = prev.month === 1 ? prev.year - 1 : prev.year
+      return { month: newMonth, year: newYear }
+    })
   }
 
   // Xử lý chuyển đến tháng sau
-  const nextMonth = () => {
-    if (month === 12) {
-      setMonth(1)
-      setYear(year + 1)
-    } else {
-      setMonth(month + 1)
-    }
+  const handleNextMonth = () => {
+    setCurrentDate(prev => {
+      const newMonth = prev.month === 12 ? 1 : prev.month + 1
+      const newYear = prev.month === 12 ? prev.year + 1 : prev.year
+      return { month: newMonth, year: newYear }
+    })
   }
 
   // Danh sách tên các tháng
@@ -171,6 +139,10 @@ export function AttendanceHistory({ employeeId }) {
     "Tháng 12",
   ]
 
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -178,13 +150,13 @@ export function AttendanceHistory({ employeeId }) {
           <CardTitle>Lịch Sử Chấm Công</CardTitle>
           {/* Điều hướng giữa các tháng */}
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="icon" onClick={previousMonth}>
+            <Button variant="outline" size="icon" onClick={handlePreviousMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="font-medium">
-              {monthNames[month - 1]} {year}
+              {monthNames[currentDate.month - 1]} {currentDate.year}
             </span>
-            <Button variant="outline" size="icon" onClick={nextMonth}>
+            <Button variant="outline" size="icon" onClick={handleNextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -205,16 +177,15 @@ export function AttendanceHistory({ employeeId }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* Hiển thị dữ liệu chấm công */}
               {attendanceData.map((record, index) => (
                 <TableRow key={index}>
-                  <TableCell>{record.date}</TableCell>
-                  <TableCell>{record.checkIn}</TableCell>
-                  <TableCell>{record.checkOut}</TableCell>
-                  <TableCell>{record.hoursWorked}</TableCell>
-                  <TableCell>{record.overtime}</TableCell>
+                  <TableCell>{new Date(record.date).toLocaleDateString("vi-VN")}</TableCell>
+                  <TableCell>{formatTime(record.checkIn)}</TableCell>
+                  <TableCell>{formatTime(record.checkOut)}</TableCell>
+                  <TableCell>{formatTotalHours(record.totalHours)}</TableCell>
+                  <TableCell>{record.overtime === 0 ? "-" : `${record.overtime} giờ`}</TableCell>
                   <TableCell>{getStatusBadge(record.status)}</TableCell>
-                  <TableCell>{record.lateBy}</TableCell>
+                  <TableCell>{formatLateTime(record.timeLate)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
