@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,77 +21,72 @@ import { vi } from "date-fns/locale"
 import { ExportExcelButton } from "@/components/export-excel-button"
 
 export function LateEmployeesTable() {
-  const { employees } = useEmployees()
+  const { departments, employees } = useEmployees()
   const [searchTerm, setSearchTerm] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [date, setDate] = useState(new Date())
+  const [lateEmployees, setLateEmployees] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [totalEmployees, setTotalEmployees] = useState(0)
 
-  // Lấy danh sách phòng ban duy nhất từ dữ liệu nhân viên
-  const departments = [...new Set(employees.map((emp) => emp.department).filter(Boolean))]
-
-  // Tạo dữ liệu nhân viên đi muộn cho ngày được chọn
-  const generateLateEmployees = () => {
-    return employees
-      .filter((emp) => emp.attendanceStatus === "late")
-      .map((emp) => {
-        // Tạo số phút đi muộn ngẫu nhiên từ 5 đến 60 phút
-        const lateMinutes = Math.floor(Math.random() * 56) + 5
-
-        // Tạo số lần đi muộn trong tháng ngẫu nhiên từ 1 đến 5
-        const lateCountInMonth = Math.floor(Math.random() * 5) + 1
-
-        return {
-          id: emp.id,
-          name: emp.name || "Nhân viên mới",
-          department: emp.department || "-",
-          position: emp.position || "-",
-          image: emp.image || "/placeholder.svg?height=80&width=80",
-          lateMinutes,
-          lateCountInMonth,
-          checkIn: emp.checkIn || "-",
-          checkOut: emp.checkOut || "-",
-        }
-      })
+  // Format ngày thành YYYY-MM-DD
+  const formatDate = (date) => {
+    return format(date, 'yyyy-MM-dd')
   }
 
-  const lateEmployees = generateLateEmployees()
+  // Fetch dữ liệu nhân viên đi muộn
+  const fetchLateEmployees = async (selectedDate, departmentId) => {
+    try {
+      setIsLoading(true)
+      const formattedDate = formatDate(selectedDate)
+      const url = `http://localhost:3001/api/employees/late?date=${formattedDate}&departmentId=${departmentId}`
+      
+      const response = await fetch(url)
+      const result = await response.json()
 
-  // Lọc nhân viên đi muộn theo tìm kiếm và phòng ban
+      if (result.status === 200 && result.data) {
+        setLateEmployees(result.data.employees || [])
+        setTotalEmployees(result.data.totalEmployees || 0)
+      }
+    } catch (error) {
+      console.error('Error fetching late employees:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Fetch dữ liệu khi component mount hoặc khi date/department thay đổi
+  useEffect(() => {
+    fetchLateEmployees(date, departmentFilter)
+  }, [date, departmentFilter])
+
+  // Lọc nhân viên đi muộn theo tìm kiếm
   const filteredLateEmployees = lateEmployees.filter((emp) => {
-    const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toString().includes(searchTerm)
-    const matchesDepartment = departmentFilter === "all" || emp.department === departmentFilter
-    return matchesSearch && matchesDepartment
+    if (!emp || typeof emp !== 'object') return false
+
+    const searchTermLower = String(searchTerm).toLowerCase()
+    const nameLower = String(emp.employeeName || '').toLowerCase()
+    const idStr = String(emp.Id || '')
+    
+    return nameLower.includes(searchTermLower) || idStr.includes(searchTermLower)
   })
-
-  // Format số phút thành chuỗi "X giờ Y phút"
-  const formatMinutes = (minutes) => {
-    if (minutes < 60) {
-      return `${minutes} phút`
-    }
-
-    const hours = Math.floor(minutes / 60)
-    const remainingMinutes = minutes % 60
-
-    if (remainingMinutes === 0) {
-      return `${hours} giờ`
-    }
-
-    return `${hours} giờ ${remainingMinutes} phút`
-  }
 
   // Chuẩn bị dữ liệu để xuất Excel
   const prepareExcelData = () => {
-    return filteredLateEmployees.map((emp) => ({
-      ID: emp.id,
-      "Họ Tên": emp.name,
-      "Bộ Phận": emp.department,
-      "Vị Trí": emp.position,
-      "Giờ Check-in": emp.checkIn,
-      "Đi Muộn": formatMinutes(emp.lateMinutes),
-      "Số Phút Đi Muộn": emp.lateMinutes,
-      "Số Lần Đi Muộn Trong Tháng": emp.lateCountInMonth,
-    }))
+    return filteredLateEmployees.map((emp) => {
+      if (!emp || typeof emp !== 'object') return null
+      
+      return {
+        ID: String(emp.employeeId || ''),
+        "Họ Tên": String(emp.employeeName || ''),
+        "Bộ Phận": String(emp.department || ''),
+        "Vị Trí": String(emp.position || ''),
+        "Ca Làm": String(emp.shift || ''),
+        "Giờ Check-in": String(emp.checkinTime || ''),
+        "Đi Muộn": String(emp.lateMinutes || ''),
+        "Số Lần Đi Muộn Trong Tháng": Number(emp.countLate) || 0,
+      }
+    }).filter(Boolean)
   }
 
   // Format ngày hiện tại
@@ -122,8 +117,8 @@ export function LateEmployeesTable() {
             <SelectContent>
               <SelectItem value="all">Tất Cả Phòng Ban</SelectItem>
               {departments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
+                <SelectItem key={String(dept._id)} value={String(dept._id)}>
+                  {String(dept.name)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -154,7 +149,12 @@ export function LateEmployeesTable() {
       {/* Bảng nhân viên đi muộn */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Danh Sách Nhân Viên Đi Muộn - {format(date, "PPP", { locale: vi })}</CardTitle>
+          <CardTitle>
+            Danh Sách Nhân Viên Đi Muộn - {format(date, "PPP", { locale: vi })} 
+            <span className="text-sm text-muted-foreground ml-2">
+              (Tổng: {totalEmployees} nhân viên)
+            </span>
+          </CardTitle>
           <ExportExcelButton
             data={prepareExcelData()}
             filename={`Nhan-Vien-Di-Muon-${formattedDate}`}
@@ -170,44 +170,58 @@ export function LateEmployeesTable() {
                   <TableHead>Nhân Viên</TableHead>
                   <TableHead>Bộ Phận</TableHead>
                   <TableHead>Vị Trí</TableHead>
+                  <TableHead>Ca Làm</TableHead>
                   <TableHead>Giờ Check-in</TableHead>
                   <TableHead>Đi Muộn</TableHead>
                   <TableHead>Số Lần Đi Muộn Trong Tháng</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLateEmployees.length === 0 ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                      Đang tải dữ liệu...
+                    </TableCell>
+                  </TableRow>
+                ) : !filteredLateEmployees || filteredLateEmployees.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                       Không có nhân viên nào đi muộn
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredLateEmployees.map((emp) => (
-                    <TableRow key={emp.id}>
-                      <TableCell>{emp.id}</TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={emp.image || "/placeholder.svg"} alt={emp.name} />
-                            <AvatarFallback>{emp.name ? emp.name.substring(0, 2).toUpperCase() : "NV"}</AvatarFallback>
-                          </Avatar>
-                          {emp.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{emp.department}</TableCell>
-                      <TableCell>{emp.position}</TableCell>
-                      <TableCell>{emp.checkIn}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-yellow-500">{formatMinutes(emp.lateMinutes)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                          {emp.lateCountInMonth} lần
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredLateEmployees.map((emp) => {
+                    if (!emp || typeof emp !== 'object') return null
+                    
+                    return (
+                      <TableRow key={String(emp.Id)}>
+                        <TableCell>{String(emp.Id || '')}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src="/placeholder.svg" alt={String(emp.employeeName || '')} />
+                              <AvatarFallback>
+                                {emp.employeeName ? String(emp.employeeName).substring(0, 2).toUpperCase() : "NV"}
+                              </AvatarFallback>
+                            </Avatar>
+                            {String(emp.employeeName || '')}
+                          </div>
+                        </TableCell>
+                        <TableCell>{String(emp.department || '')}</TableCell>
+                        <TableCell>{String(emp.position || '')}</TableCell>
+                        <TableCell>{String(emp.shift || '')}</TableCell>
+                        <TableCell>{String(emp.checkinTime || '')}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-red-500">{String(emp.lateMinutes || '')}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+                            {String(emp.countLate || 0)} lần
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>

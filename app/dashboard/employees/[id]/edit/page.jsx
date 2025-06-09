@@ -226,7 +226,7 @@ export default function EditEmployeePage({ params }) {
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => router.push("/dashboard/employees")}
+              onClick={() => router.replace("/dashboard/management")}
             >
               Hủy
             </Button>

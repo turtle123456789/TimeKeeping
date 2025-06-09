@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -21,77 +21,76 @@ import { vi } from "date-fns/locale"
 import { ExportExcelButton } from "@/components/export-excel-button"
 
 export function EarlyEmployeesTable() {
-  const { employees } = useEmployees()
+  const { departments, employees } = useEmployees()
   const [searchTerm, setSearchTerm] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [date, setDate] = useState(new Date())
+  const [earlyEmployees, setEarlyEmployees] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [totalEmployees, setTotalEmployees] = useState(0)
+  const [totalCheckins, setTotalCheckins] = useState(0)
+  const [earlyLeaves, setEarlyLeaves] = useState(0)
 
-  // Lấy danh sách phòng ban duy nhất từ dữ liệu nhân viên
-  const departments = [...new Set(employees.map((emp) => emp.department).filter(Boolean))]
-
-  // Tạo dữ liệu nhân viên về sớm cho ngày được chọn
-  const generateEarlyEmployees = () => {
-    return employees
-      .filter((emp) => emp.attendanceStatus === "early")
-      .map((emp) => {
-        // Tạo số phút về sớm ngẫu nhiên từ 5 đến 60 phút
-        const earlyMinutes = Math.floor(Math.random() * 56) + 5
-
-        // Tạo số lần về sớm trong tháng ngẫu nhiên từ 1 đến 5
-        const earlyCountInMonth = Math.floor(Math.random() * 5) + 1
-
-        return {
-          id: emp.id,
-          name: emp.name || "Nhân viên mới",
-          department: emp.department || "-",
-          position: emp.position || "-",
-          image: emp.image || "/placeholder.svg?height=80&width=80",
-          earlyMinutes,
-          earlyCountInMonth,
-          checkIn: emp.checkIn || "-",
-          checkOut: emp.checkOut || "-",
-        }
-      })
+  // Format ngày thành YYYY-MM-DD
+  const formatDate = (date) => {
+    return format(date, 'yyyy-MM-dd')
   }
 
-  const earlyEmployees = generateEarlyEmployees()
+  // Fetch dữ liệu nhân viên về sớm
+  const fetchEarlyEmployees = async (selectedDate, departmentId) => {
+    try {
+      setIsLoading(true)
+      const formattedDate = formatDate(selectedDate)
+      const url = `http://localhost:3001/api/employees/early-leave?date=${formattedDate}&departmentId=${departmentId}`
+      
+      const response = await fetch(url)
+      const result = await response.json()
 
-  // Lọc nhân viên về sớm theo tìm kiếm và phòng ban
+      if (result.status === 200 && result.data) {
+        setEarlyEmployees(result.data.employees || [])
+        setTotalEmployees(result.data.totalEmployees || 0)
+        setTotalCheckins(result.data.totalCheckins || 0)
+        setEarlyLeaves(result.data.earlyLeaves || 0)
+      }
+    } catch (error) {
+      console.error('Error fetching early leave employees:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Fetch dữ liệu khi component mount hoặc khi date/department thay đổi
+  useEffect(() => {
+    fetchEarlyEmployees(date, departmentFilter)
+  }, [date, departmentFilter])
+
+  // Lọc nhân viên về sớm theo tìm kiếm
   const filteredEarlyEmployees = earlyEmployees.filter((emp) => {
-    const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toString().includes(searchTerm)
-    const matchesDepartment = departmentFilter === "all" || emp.department === departmentFilter
-    return matchesSearch && matchesDepartment
+    if (!emp || typeof emp !== 'object') return false
+
+    const searchTermLower = String(searchTerm).toLowerCase()
+    const nameLower = String(emp.employeeName || '').toLowerCase()
+    const idStr = String(emp.Id || '')
+    
+    return nameLower.includes(searchTermLower) || idStr.includes(searchTermLower)
   })
-
-  // Format số phút thành chuỗi "X giờ Y phút"
-  const formatMinutes = (minutes) => {
-    if (minutes < 60) {
-      return `${minutes} phút`
-    }
-
-    const hours = Math.floor(minutes / 60)
-    const remainingMinutes = minutes % 60
-
-    if (remainingMinutes === 0) {
-      return `${hours} giờ`
-    }
-
-    return `${hours} giờ ${remainingMinutes} phút`
-  }
 
   // Chuẩn bị dữ liệu để xuất Excel
   const prepareExcelData = () => {
-    return filteredEarlyEmployees.map((emp) => ({
-      ID: emp.id,
-      "Họ Tên": emp.name,
-      "Bộ Phận": emp.department,
-      "Vị Trí": emp.position,
-      "Giờ Check-out": emp.checkOut,
-      "Về Sớm": formatMinutes(emp.earlyMinutes),
-      "Số Phút Về Sớm": emp.earlyMinutes,
-      "Số Lần Về Sớm Trong Tháng": emp.earlyCountInMonth,
-    }))
+    return filteredEarlyEmployees.map((emp) => {
+      if (!emp || typeof emp !== 'object') return null
+      
+      return {
+        ID: String(emp.Id || ''),
+        "Họ Tên": String(emp.employeeName || ''),
+        "Bộ Phận": String(emp.department || ''),
+        "Vị Trí": String(emp.position || ''),
+        "Ca Làm": String(emp.shift || ''),
+        "Giờ Check-out": String(emp.checkinTime || ''),
+        "Về Sớm": String(emp.earlyMinutes || ''),
+        "Số Lần Về Sớm Trong Tháng": Number(emp.countEarlyLeave) || 0,
+      }
+    }).filter(Boolean)
   }
 
   // Format ngày hiện tại
@@ -122,8 +121,8 @@ export function EarlyEmployeesTable() {
             <SelectContent>
               <SelectItem value="all">Tất Cả Phòng Ban</SelectItem>
               {departments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
+                <SelectItem key={String(dept._id)} value={String(dept._id)}>
+                  {String(dept.name)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -176,38 +175,50 @@ export function EarlyEmployeesTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEarlyEmployees.length === 0 ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                      Đang tải dữ liệu...
+                    </TableCell>
+                  </TableRow>
+                ) : !filteredEarlyEmployees || filteredEarlyEmployees.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                       Không có nhân viên nào về sớm
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredEarlyEmployees.map((emp) => (
-                    <TableRow key={emp.id}>
-                      <TableCell>{emp.id}</TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={emp.image || "/placeholder.svg"} alt={emp.name} />
-                            <AvatarFallback>{emp.name ? emp.name.substring(0, 2).toUpperCase() : "NV"}</AvatarFallback>
-                          </Avatar>
-                          {emp.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{emp.department}</TableCell>
-                      <TableCell>{emp.position}</TableCell>
-                      <TableCell>{emp.checkOut}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-blue-500">{formatMinutes(emp.earlyMinutes)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
-                          {emp.earlyCountInMonth} lần
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredEarlyEmployees.map((emp) => {
+                    if (!emp || typeof emp !== 'object') return null
+                    
+                    return (
+                      <TableRow key={String(emp.Id)}>
+                        <TableCell>{String(emp.Id || '')}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src="/placeholder.svg" alt={String(emp.employeeName || '')} />
+                              <AvatarFallback>
+                                {emp.employeeName ? String(emp.employeeName).substring(0, 2).toUpperCase() : "NV"}
+                              </AvatarFallback>
+                            </Avatar>
+                            {String(emp.employeeName || '')}
+                          </div>
+                        </TableCell>
+                        <TableCell>{String(emp.department || '')}</TableCell>
+                        <TableCell>{String(emp.position || '')}</TableCell>
+                        <TableCell>{String(emp.checkinTime || '')}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-blue-500">{String(emp.earlyMinutes || '')}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+                            {String(emp.countEarlyLeave || 0)} lần
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>

@@ -49,7 +49,7 @@ export default function EmployeePage({ params }) {
       } catch (error) {
         console.error("Error fetching employee:", error)
         toast.error("Không thể tải thông tin nhân viên")
-        router.push("/dashboard/employees")
+        router.replace("/dashboard/management")
       } finally {
         setIsLoading(false)
       }
@@ -75,7 +75,7 @@ export default function EmployeePage({ params }) {
     try {
       await deleteEmployee(employeeId)
       toast.success("Xóa nhân viên thành công")
-      router.push("/dashboard/management")
+      router.replace("/dashboard/management")
     } catch (error) {
       console.error("Error deleting employee:", error)
       toast.error("Không thể xóa nhân viên")
@@ -86,7 +86,7 @@ export default function EmployeePage({ params }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/employees">
+          <Link href="/dashboard/management">
             <Button variant="outline" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>

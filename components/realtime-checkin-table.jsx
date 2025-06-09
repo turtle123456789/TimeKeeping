@@ -14,72 +14,130 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
 import socket from "@/lib/socket"
-import { da } from "date-fns/locale"
+
 export function RealtimeCheckinTable() {
-  const { employees } = useEmployees()
+  const {departments, employees } = useEmployees()
   const [searchTerm, setSearchTerm] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [recentCheckins, setRecentCheckins] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   // Lấy danh sách phòng ban duy nhất từ dữ liệu nhân viên
-  const departments = [...new Set(employees.map((emp) => emp.department).filter(Boolean))]
 
-  // Giả lập dữ liệu check-in gần đây
+  // Fetch dữ liệu check-in khi component mount
   useEffect(() => {
-    console.log("RealtimeCheckinTable mounted - Setting up socket listener")
 
-    const handleCheckin = (data) => {
-      console.log("Received checkin event in RealtimeCheckinTable:", data)
-      
-      // Đảm bảo checkinTime là một đối tượng Date hợp lệ
-      let checkinTime;
-      if (data.checkinTime) {
-        console.log("Parsed exist:", checkinTime);
-        checkinTime = new Date(data.checkinTime);
-      } else if (data.timestamp) {
-        checkinTime = new Date(data.timestamp);
-      } else {
-        checkinTime = new Date();
-      }
-
-      console.log("Parsed checkinTime:", checkinTime);
-
-      const newCheckin = {
-        id: data.employeeId,
-        name: data.fullName || "Nhân viên mới",
-        department: data.department || "Chưa có bộ phân",
-        position: data.position || "Chưa có vị trí",
-        faceImage: data.faceImage || "/placeholder.svg",
-        checkinTime: checkinTime,
-        formattedTime: `${checkinTime.getHours().toString().padStart(2, "0")}:${checkinTime
-          .getMinutes()
-          .toString()
-          .padStart(2, "0")}`,
-      }
-
-      console.log("Adding new checkin:", newCheckin)
-      setRecentCheckins((prev) => [newCheckin, ...prev.slice(0, 19)])
+    const formatTime = (time) => {
+      const hours = time.getHours().toString().padStart(2, '0'); // "08" 
+      const minutes = time.getMinutes().toString().padStart(2, '0'); // "15"
+      // Kết hợp giờ và phút
+      const formattedTime = `${hours}:${minutes}`;
+      return formattedTime;
     }
 
-    // Lắng nghe sự kiện "checkin"
+    const fetchTodayCheckins = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('http://localhost:3001/api/checkins/today')
+        const result = await response.json()
+
+        if (result.success && Array.isArray(result.data)) {
+          const formattedCheckins = result.data.map(checkin => {
+            if (!checkin || typeof checkin !== 'object') return null
+
+            const checkinTime = new Date(checkin.checkIn)
+            console.log("checkinTime", checkinTime)
+            if (isNaN(checkinTime.getTime())) {
+              console.error('Invalid date:', checkin.checkIn)
+              return null
+            }
+
+            return {
+              id: String(checkin.employeeId || ''),
+              name: String(checkin.fullName || "Nhân viên mới"),
+              department: String(checkin.department || "Chưa có bộ phân"),
+              position: String(checkin.position || "Chưa có vị trí"),
+              faceImage: String(checkin.faceImage || "/placeholder.svg"),
+              checkinTime: checkinTime,
+              formattedTime: formatTime(checkinTime)
+            }
+          }).filter(Boolean)
+
+          setRecentCheckins(formattedCheckins)
+        }
+      } catch (error) {
+        console.error('Error fetching today checkins:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTodayCheckins()
+  }, []) // Chỉ chạy khi component mount
+
+  // Xử lý sự kiện check-in realtime
+  useEffect(() => {
+    const handleCheckin = (data) => {
+      if (!data || typeof data !== 'object') return
+
+      try {
+        const checkinTime = data.checkinTime ? new Date(data.checkinTime) : 
+                          data.timestamp ? new Date(data.timestamp) : 
+                          new Date()
+
+        if (isNaN(checkinTime.getTime())) {
+          console.error('Invalid date:', data.checkinTime || data.timestamp)
+          return
+        }
+
+        const newCheckin = {
+          id: String(data.employeeId || ''),
+          name: String(data.fullName || "Nhân viên mới"),
+          department: String(data.department || "Chưa có bộ phân"),
+          position: String(data.position || "Chưa có vị trí"),
+          faceImage: String(data.faceImage || "/placeholder.svg"),
+          checkinTime: checkinTime,
+          formattedTime: checkinTime.toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        }
+
+        setRecentCheckins((prev) => [newCheckin, ...prev.slice(0, 19)])
+      } catch (error) {
+        console.error('Error processing checkin data:', error)
+      }
+    }
+
     socket.on("checkin", handleCheckin)
-    console.log("Socket listener for 'checkin' event has been set up")
 
     return () => {
-      console.log("RealtimeCheckinTable unmounting - Cleaning up socket listener")
       socket.off("checkin", handleCheckin)
     }
   }, [])
+
   // Lọc check-in theo tìm kiếm và phòng ban
   const filteredCheckins = recentCheckins.filter((checkin) => {
-    const matchesSearch =
-      checkin.name.toLowerCase().includes(searchTerm.toLowerCase()) || checkin.id.toString().includes(searchTerm)
-    const matchesDepartment = departmentFilter === "all" || checkin.department === departmentFilter
+    if (!checkin || typeof checkin !== 'object') return false
+
+    const searchTermLower = String(searchTerm).toLowerCase()
+    const nameLower = String(checkin.name || '').toLowerCase()
+    const idStr = String(checkin.id || '')
+    
+    const matchesSearch = nameLower.includes(searchTermLower) || 
+                         idStr.includes(searchTermLower)
+    const matchesDepartment = departmentFilter === "all" || 
+                             String(checkin.department) === String(departmentFilter)
+    
     return matchesSearch && matchesDepartment
   })
 
-  // Format thời gian tương đối (ví dụ: "2 phút trước")
+  // Format thời gian tương đối
   const getRelativeTime = (date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return "Không xác định"
+    }
+    
     const now = new Date()
     const diffInSeconds = Math.floor((now - date) / 1000)
 
@@ -121,8 +179,8 @@ export function RealtimeCheckinTable() {
             <SelectContent>
               <SelectItem value="all">Tất Cả Phòng Ban</SelectItem>
               {departments.map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
+                <SelectItem key={String(dept._id )} value={String(dept.name)}>
+                  {String(dept.name)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -150,38 +208,43 @@ export function RealtimeCheckinTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCheckins.length === 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                      Đang tải dữ liệu...
+                    </TableCell>
+                  </TableRow>
+                ) : !filteredCheckins || filteredCheckins.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                       Không có dữ liệu check-in nào
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredCheckins.map((checkin, index) => 
-                    {
-                       const checkinTime = new Date(checkin.timestamp);
-                      const key = `${checkin.id}-${checkinTime.getTime()}-${index}`;
-                      return (
-                        <TableRow key={key}>
-                          <TableCell>{checkin.id}</TableCell>
-                          <TableCell className="font-medium">{checkin.name}</TableCell>
-                          <TableCell>{checkin.department}</TableCell>
-                          <TableCell>{checkin.position}</TableCell>
-                          <TableCell>
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={checkin.faceImage || "/placeholder.svg"} alt="Khuôn mặt check-in" />
-                              <AvatarFallback>KM</AvatarFallback>
-                            </Avatar>
-                          </TableCell>
-                          <TableCell>{checkin.formattedTime}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                              {getRelativeTime(checkin.checkinTime)}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
+                  filteredCheckins.map((checkin, index) => {
+                    if (!checkin || typeof checkin !== 'object') return null
+                    
+                    return (
+                      <TableRow key={`${String(checkin.id)}-${index}`}>
+                        <TableCell>{String(checkin.id || '')}</TableCell>
+                        <TableCell className="font-medium">{String(checkin.name || '')}</TableCell>
+                        <TableCell>{String(checkin.department || '')}</TableCell>
+                        <TableCell>{String(checkin.position || '')}</TableCell>
+                        <TableCell>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={String(checkin.faceImage || '/placeholder.svg')} alt="Khuôn mặt check-in" />
+                            <AvatarFallback>KM</AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell>{String(checkin.formattedTime || '')}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                            {getRelativeTime(checkin.checkinTime)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>

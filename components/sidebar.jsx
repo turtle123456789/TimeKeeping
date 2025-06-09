@@ -72,7 +72,7 @@ export function Sidebar() {
         {/* Liên kết đến trang Quản Lý Nhân Viên */}
         <Link href="/dashboard/management">
           <Button
-            variant={pathname.includes("/dashboard/management") ? "default" : "ghost"}
+            variant={pathname.includes("/dashboard/management") || pathname.includes("/dashboard/employee") ? "default" : "ghost"}
             className="w-full justify-start"
           >
             <UserCog className="mr-2 h-4 w-4" />
