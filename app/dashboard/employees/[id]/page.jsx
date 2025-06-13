@@ -3,7 +3,7 @@
  * Hiển thị thông tin chi tiết của một nhân viên và cho phép chỉnh sửa hoặc xóa
  */
 "use client"
-
+import { use } from 'react';
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { EmployeeDetails } from "@/components/employee-details"
@@ -33,7 +33,7 @@ import { toast } from "sonner"
  * @param {string} props.params.id - ID của nhân viên
  */
 export default function EmployeePage({ params }) {
-  const employeeId = params.id
+  const { id: employeeId } = use(params); 
   const { getEmployeeById, deleteEmployee } = useEmployees()
   const [employee, setEmployee] = useState(null)
   const [isLoading, setIsLoading] = useState(true)

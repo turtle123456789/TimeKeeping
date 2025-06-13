@@ -119,19 +119,23 @@ export function EditEmployeeModal({ isOpen, onClose, employeeId }) {
   }
 
   // Xử lý tải lên ảnh đại diện mới
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setIsUploading(true)
+const handleImageUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    setIsUploading(true);
 
-      // Mô phỏng việc tải lên
-      setTimeout(() => {
-        const imageUrl = URL.createObjectURL(file)
-        setProfileImage(imageUrl)
-        setIsUploading(false)
-      }, 1000)
-    }
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const base64String = reader.result; // chuỗi base64
+      console.log('base64String :>> ', base64String);
+      setProfileImage(base64String); // set vào form
+      setIsUploading(false);
+    };
+
+    reader.readAsDataURL(file); // chuyển file thành base64
   }
+};
 
   // Xử lý submit form
   const handleSubmit = async () => {
@@ -363,14 +367,14 @@ export function EditEmployeeModal({ isOpen, onClose, employeeId }) {
                     <p className="text-sm text-muted-foreground">Nhấp để chọn ảnh hoặc kéo thả vào đây</p>
                     {isUploading && <p className="text-sm text-blue-500 mt-2">Đang tải lên...</p>}
                   </div>
-                  <Input
-                    id="profile-picture"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    disabled={isUploading}
-                  />
+                    <Input
+                      id="profile-picture"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                    />
                 </Label>
               </div>
             </div>

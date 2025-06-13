@@ -89,20 +89,22 @@ export default function NewEmployeePage() {
 
   // Xử lý tải lên ảnh đại diện mới
   const handleImageUpload = (e) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setIsUploading(true)
+      setIsUploading(true);
 
-      // Mô phỏng việc tải lên
-      setTimeout(() => {
+      const reader = new FileReader();
 
-        const imageUrl = URL.createObjectURL(file)
-        setProfileImage(imageUrl)
-        setIsUploading(false)
-      }, 1000)
+      reader.onloadend = () => {
+        const base64String = reader.result; // chuỗi base64
+        console.log('base64String :>> ', base64String);
+        setProfileImage(base64String); // set vào form
+        setIsUploading(false);
+      };
+
+      reader.readAsDataURL(file); // chuyển file thành base64
     }
-  }
-
+  };
   // Xử lý submit form
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -122,7 +124,7 @@ export default function NewEmployeePage() {
         joinDate: formData.joinDate,
         status: "active",
         shift: formData.shift,
-        image: profileImage || "/placeholder.svg?height=200&width=200",
+        imageAvatar: profileImage || "/placeholder.svg?height=200&width=200",
         faceImage: profileImage || "/placeholder.svg?height=200&width=200",
         faceRegistrationTime: new Date().toISOString(),
         salary: {

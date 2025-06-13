@@ -240,7 +240,7 @@ export function EmployeeManagementTable() {
                     <TableCell>{getShiftBadge(employee.shift)}</TableCell>
                     <TableCell>
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={employee.image || "/placeholder.svg?height=48&width=48"} alt="Ảnh 3x4" />
+                        <AvatarImage src={employee.imageAvatar || "/placeholder.svg?height=48&width=48"} alt="Ảnh 3x4" />
                         <AvatarFallback>
                           {employee.name ? employee.name.substring(0, 2).toUpperCase() : "NV"}
                         </AvatarFallback>

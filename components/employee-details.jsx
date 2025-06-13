@@ -38,20 +38,27 @@ export function EmployeeDetails({ employee }) {
    * Xử lý sự kiện tải lên ảnh đại diện mới
    * @param {Event} e - Sự kiện thay đổi input file
    */
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setIsUploading(true)
+const handleImageUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    setIsUploading(true);
 
-      // Mô phỏng việc tải lên
-      setTimeout(() => {
-        const imageUrl = URL.createObjectURL(file)
-        setProfileImage(imageUrl)
-        updateEmployee(employee.employeeId, { image: imageUrl })
-        setIsUploading(false)
-      }, 1000)
-    }
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const base64String = reader.result; // đây là base64 dạng: data:image/jpeg;base64,...
+
+      setProfileImage(base64String); // Cập nhật ảnh hiển thị
+
+      // Gửi base64 để lưu vào database
+      updateEmployee(employee?.employeeId, { imageAvatar: base64String });
+
+      setIsUploading(false);
+    };
+
+    reader.readAsDataURL(file); // convert sang base64
   }
+};
 
   /**
    * Lấy tên ca làm việc
@@ -104,10 +111,10 @@ export function EmployeeDetails({ employee }) {
           <div className="relative">
             <Avatar className="h-32 w-32">
               <AvatarImage
-                src={profileImage || employee.image || "/placeholder.svg?height=128&width=128"}
-                alt={employee.fullName || "Nhân viên mới"}
+                src={profileImage || employee?.imageAvatar || "/placeholder.svg?height=128&width=128"}
+                alt={employee?.fullName || "Nhân viên mới"}
               />
-              <AvatarFallback>{employee.fullName || "NV"}</AvatarFallback>
+              <AvatarFallback>{employee?.fullName || "NV"}</AvatarFallback>
             </Avatar>
             {/* Nút chỉnh sửa ảnh đại diện */}
             <Dialog>
@@ -139,50 +146,50 @@ export function EmployeeDetails({ employee }) {
             </Dialog>
           </div>
           <div className="text-center">
-            <h3 className="text-xl font-semibold">{employee.fullName || "Nhân viên mới"}</h3>
-            <p className="text-muted-foreground">{employee.position.name || "Chưa có vị trí"}</p>
+            <h3 className="text-xl font-semibold">{employee?.fullName || "Nhân viên mới"}</h3>
+            <p className="text-muted-foreground">{employee?.position?.name || "Chưa có vị trí"}</p>
           </div>
-          <Badge>{employee.department.name || "Chưa có phòng ban"}</Badge>
+          <Badge>{employee?.department?.name || "Chưa có phòng ban"}</Badge>
         </div>
 
         {/* Phần thông tin liên hệ và công việc */}
         <div className="space-y-3">
-          {employee.email && (
+          {employee?.email && (
             <div className="flex items-center space-x-3">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.email}</span>
+              <span>{employee?.email}</span>
             </div>
           )}
-          {employee.phone && (
+          {employee?.phone && (
             <div className="flex items-center space-x-3">
               <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.phone}</span>
+              <span>{employee?.phone}</span>
             </div>
           )}
-          {employee.joinDate && (
+          {employee?.joinDate && (
             <div className="flex items-center space-x-3">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>Ngày vào làm: {employee.joinDate}</span>
+              <span>Ngày vào làm: {employee?.joinDate}</span>
             </div>
           )}
-          {employee.department && (
+          {employee?.department && (
             <div className="flex items-center space-x-3">
               <Building className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.department.name}</span>
+              <span>{employee?.department.name}</span>
             </div>
           )}
-          {employee.position && (
+          {employee?.position && (
             <div className="flex items-center space-x-3">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
-              <span>{employee.position.name}</span>
+              <span>{employee?.position.name}</span>
             </div>
           )}
-          {employee.shift && (
+          {employee?.shift && (
             <div className="flex items-center space-x-3">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div>
-                <span>{getShiftName(employee.shift)}</span>
-                <p className="text-xs text-muted-foreground">{getShiftTime(employee.shift)}</p>
+                <span>{getShiftName(employee?.shift)}</span>
+                <p className="text-xs text-muted-foreground">{getShiftTime(employee?.shift)}</p>
               </div>
             </div>
           )}
@@ -193,11 +200,11 @@ export function EmployeeDetails({ employee }) {
           <h4 className="font-medium">Đăng Ký Khuôn Mặt</h4>
           <div className="flex items-center space-x-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>Đã đăng ký vào: {employee.faceRegistrationTime || "Chưa đăng ký"}</span>
+            <span>Đã đăng ký vào: {employee?.faceRegistrationTime || "Chưa đăng ký"}</span>
           </div>
           <div className="mt-2 border rounded-md overflow-hidden">
             <img
-              src={employee.faceImage || "/placeholder.svg?height=200&width=200"}
+              src={employee?.faceImage || "/placeholder.svg?height=200&width=200"}
               alt="Khuôn mặt đăng ký"
               className="w-full h-auto"
             />
