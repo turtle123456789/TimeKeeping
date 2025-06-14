@@ -92,15 +92,22 @@ export function DepartmentManagement() {
 
   // Load positions by department when filter changes
   useEffect(() => {
-    if (filterDepartment !== "all") {
-      getPositionsByDepartment(filterDepartment).then((positions) => {
-        setDepartmentPositions((prev) => ({
-          ...prev,
-          [filterDepartment]: positions,
-        }))
-      })
+    const loadPositions = async () => {
+      if (filterDepartment !== "all") {
+        try {
+          const positions = await getPositionsByDepartment(filterDepartment)
+          setDepartmentPositions((prev) => ({
+            ...prev,
+            [filterDepartment]: positions,
+          }))
+        } catch (error) {
+          console.error("Error loading positions:", error)
+        }
+      }
     }
-  }, [filterDepartment, getPositionsByDepartment])
+
+    loadPositions()
+  }, [filterDepartment])
 
   // Xử lý thêm bộ phận mới
   const handleAddDepartment = async () => {

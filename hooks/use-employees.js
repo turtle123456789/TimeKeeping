@@ -6,12 +6,7 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-const DEPARTMENTS_ENDPOINT = `${API_URL}/departments`
-const POSITIONS_ENDPOINT = `${API_URL}/positions`
-const EMPLOYEES_ENDPOINT = `${API_URL}/employees`
-
+import api from "@/lib/api"
 
 // Định nghĩa các ca làm việc
 export const SHIFTS = {
@@ -46,12 +41,8 @@ export function useEmployees() {
   // Fetch departments
   const fetchDepartments = async () => {
     try {
-      const response = await fetch(DEPARTMENTS_ENDPOINT)
-      if (!response.ok) {
-        throw new Error("Failed to fetch departments")
-      }
-      const result = await response.json()
-      setDepartments(result.data)
+      const response = await api.get('/departments')
+      setDepartments(response.data.data)
     } catch (err) {
       console.error("Error fetching departments:", err)
       toast.error("Không thể tải danh sách phòng ban")
@@ -61,12 +52,8 @@ export function useEmployees() {
   // Fetch positions
   const fetchPositions = async () => {
     try {
-      const response = await fetch(POSITIONS_ENDPOINT)
-      if (!response.ok) {
-        throw new Error("Failed to fetch positions")
-      }
-      const result = await response.json()
-      setPositions(result.data)
+      const response = await api.get('/positions')
+      setPositions(response.data.data)
     } catch (err) {
       console.error("Error fetching positions:", err)
       toast.error("Không thể tải danh sách vị trí")
@@ -78,12 +65,8 @@ export function useEmployees() {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch(EMPLOYEES_ENDPOINT)
-      if (!response.ok) {
-        throw new Error("Failed to fetch employees")
-      }
-      const result = await response.json()
-      setEmployees(result.data)
+      const response = await api.get('/employees')
+      setEmployees(response.data.data)
     } catch (err) {
       console.error("Error fetching employees:", err)
       setError(err.message)
@@ -98,13 +81,8 @@ export function useEmployees() {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch(`${EMPLOYEES_ENDPOINT}/${employeeId}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch employee")
-      }
-      const result = await response.json()
-      console.log("Result12: ", result)
-      return result.data
+      const response = await api.get(`/employees/${employeeId}`)
+      return response.data.data
     } catch (err) {
       console.error("Error fetching employee:", err)
       setError(err.message)
@@ -118,22 +96,10 @@ export function useEmployees() {
   // Add new employee
   const addEmployee = async (employeeData) => {
     try {
-      const response = await fetch(EMPLOYEES_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(employeeData),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to add employee")
-      }
-
-      const result = await response.json()
+      const response = await api.post('/employees', employeeData)
       toast.success("Thêm nhân viên thành công")
       await fetchEmployees() // Refresh the list
-      return result.data
+      return response.data.data
     } catch (err) {
       console.error("Error adding employee:", err)
       toast.error("Không thể thêm nhân viên")
@@ -144,22 +110,10 @@ export function useEmployees() {
   // Update employee
   const updateEmployee = async (employeeId, employeeData) => {
     try {
-      const response = await fetch(`${EMPLOYEES_ENDPOINT}/${employeeId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(employeeData),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update employee")
-      }
-
-      const result = await response.json()
+      const response = await api.put(`/employees/${employeeId}`, employeeData)
       toast.success("Cập nhật nhân viên thành công")
       await fetchEmployees() // Refresh the list
-      return result.data
+      return response.data.data
     } catch (err) {
       console.error("Error updating employee:", err)
       toast.error("Không thể cập nhật nhân viên")
@@ -170,14 +124,7 @@ export function useEmployees() {
   // Delete employee
   const deleteEmployee = async (employeeId) => {
     try {
-      const response = await fetch(`${EMPLOYEES_ENDPOINT}/${employeeId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete employee")
-      }
-
+      await api.delete(`/employees/${employeeId}`)
       toast.success("Xóa nhân viên thành công")
       await fetchEmployees() // Refresh the list
     } catch (err) {

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff, LogIn } from "lucide-react"
+import api, { setAuthToken } from "@/lib/api"
 
 /**
  * Component form đăng nhập
@@ -34,29 +35,27 @@ export function LoginForm() {
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await api.post('/auth/login', {
+        username,
+        password
+      });
 
-      // Kiểm tra thông tin đăng nhập (demo)
-      if (username === "admin" && password === "admin123") {
-        toast({
-          title: "Đăng nhập thành công",
-          description: "Chào mừng bạn đến với hệ thống chấm công!",
-        })
+      const { token } = response.data;
+      
+      // Lưu token vào localStorage
+      setAuthToken(token);
 
-        // Chuyển hướng đến trang check-in gần đây
-        router.push("/dashboard/realtime")
-      } else {
-        toast({
-          title: "Đăng nhập thất bại",
-          description: "Tên đăng nhập hoặc mật khẩu không đúng.",
-          variant: "destructive",
-        })
-      }
+      toast({
+        title: "Đăng nhập thành công",
+        description: "Chào mừng bạn đến với hệ thống chấm công!",
+      })
+
+      // Chuyển hướng đến trang check-in gần đây
+      router.push("/dashboard/realtime")
     } catch (error) {
       toast({
-        title: "Lỗi hệ thống",
-        description: "Có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại.",
+        title: "Đăng nhập thất bại",
+        description: error.response?.data?.message || "Có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại.",
         variant: "destructive",
       })
     } finally {

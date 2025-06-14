@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
 import socket from "@/lib/socket"
+import api from "@/lib/api"
 
 export function RealtimeCheckinTable() {
   const {departments, employees } = useEmployees()
@@ -38,11 +39,10 @@ export function RealtimeCheckinTable() {
     const fetchTodayCheckins = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch('http://localhost:3001/api/checkins/today')
-        const result = await response.json()
+        const response = await api.get('/checkins/today')
 
-        if (result.success && Array.isArray(result.data)) {
-          const formattedCheckins = result.data.map(checkin => {
+        if (response.data.success && Array.isArray(response.data.data)) {
+          const formattedCheckins = response.data.data.map(checkin => {
             if (!checkin || typeof checkin !== 'object') return null
 
             const checkinTime = new Date(checkin.checkIn)

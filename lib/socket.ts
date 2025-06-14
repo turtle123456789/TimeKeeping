@@ -1,18 +1,20 @@
 import { io } from "socket.io-client"
 
-const socket = io("http://localhost:3001")
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+
+const socket = io(SOCKET_URL)
 
 // Log connection status
 socket.on('connect', () => {
     console.log('Socket connected successfully')
 })
 
-socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error)
+socket.on('disconnect', () => {
+    console.log('Socket disconnected')
 })
 
-socket.on('disconnect', (reason) => {
-    console.log('Socket disconnected:', reason)
+socket.on('error', (error) => {
+    console.error('Socket error:', error)
 })
 
 // // Log all incoming events for debugging

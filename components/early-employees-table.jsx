@@ -19,6 +19,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { ExportExcelButton } from "@/components/export-excel-button"
+import { api } from "@/lib/api"
 
 export function EarlyEmployeesTable() {
   const { departments, employees } = useEmployees()
@@ -41,16 +42,18 @@ export function EarlyEmployeesTable() {
     try {
       setIsLoading(true)
       const formattedDate = formatDate(selectedDate)
-      const url = `http://localhost:3001/api/employees/early-leave?date=${formattedDate}&departmentId=${departmentId}`
-      
-      const response = await fetch(url)
-      const result = await response.json()
+      const response = await api.get(`/employees/early-leave`, {
+        params: {
+          date: formattedDate,
+          departmentId: departmentId
+        }
+      })
 
-      if (result.status === 200 && result.data) {
-        setEarlyEmployees(result.data.employees || [])
-        setTotalEmployees(result.data.totalEmployees || 0)
-        setTotalCheckins(result.data.totalCheckins || 0)
-        setEarlyLeaves(result.data.earlyLeaves || 0)
+      if (response.data.status === 200 && response.data.data) {
+        setEarlyEmployees(response.data.data.employees || [])
+        setTotalEmployees(response.data.data.totalEmployees || 0)
+        setTotalCheckins(response.data.data.totalCheckins || 0)
+        setEarlyLeaves(response.data.data.earlyLeaves || 0)
       }
     } catch (error) {
       console.error('Error fetching early leave employees:', error)

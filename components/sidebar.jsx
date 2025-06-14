@@ -5,13 +5,17 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Settings, LogOut, Clock, AlertTriangle, ArrowDown, Timer, UserCog, Building } from "lucide-react"
+import { removeAuthToken } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 export function Sidebar() {
   // Lấy đường dẫn hiện tại để xác định menu item nào đang active
   const pathname = usePathname()
+  const router = useRouter()
+  const { toast } = useToast()
 
   /**
    * Kiểm tra xem đường dẫn hiện tại có khớp với đường dẫn được truyền vào không
@@ -26,7 +30,17 @@ export function Sidebar() {
    * Xử lý sự kiện đăng xuất
    */
   const handleLogout = () => {
-    window.location.href = "/"
+    // Xóa token khỏi localStorage
+    removeAuthToken()
+    
+    // Hiển thị thông báo đăng xuất thành công
+    toast({
+      title: "Đăng xuất thành công",
+      description: "Bạn đã đăng xuất khỏi hệ thống",
+    })
+
+    // Chuyển hướng về trang đăng nhập
+    router.replace("/")
   }
 
   return (

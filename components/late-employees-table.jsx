@@ -19,6 +19,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { ExportExcelButton } from "@/components/export-excel-button"
+import { api } from "@/lib/api"
 
 export function LateEmployeesTable() {
   const { departments, employees } = useEmployees()
@@ -39,14 +40,16 @@ export function LateEmployeesTable() {
     try {
       setIsLoading(true)
       const formattedDate = formatDate(selectedDate)
-      const url = `http://localhost:3001/api/employees/late?date=${formattedDate}&departmentId=${departmentId}`
-      
-      const response = await fetch(url)
-      const result = await response.json()
+      const response = await api.get(`/employees/late`, {
+        params: {
+          date: formattedDate,
+          departmentId: departmentId
+        }
+      })
 
-      if (result.status === 200 && result.data) {
-        setLateEmployees(result.data.employees || [])
-        setTotalEmployees(result.data.totalEmployees || 0)
+      if (response.data.status === 200 && response.data.data) {
+        setLateEmployees(response.data.data.employees || [])
+        setTotalEmployees(response.data.data.totalEmployees || 0)
       }
     } catch (error) {
       console.error('Error fetching late employees:', error)

@@ -6,11 +6,7 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-
-// API endpoints
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
-const DEPARTMENTS_ENDPOINT = `${API_BASE_URL}/departments`
-const POSITIONS_ENDPOINT = `${API_BASE_URL}/positions`
+import api from "@/lib/api"
 
 /**
  * Hook quản lý dữ liệu bộ phận và vị trí
@@ -27,12 +23,8 @@ export function useDepartments() {
   const fetchDepartments = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(DEPARTMENTS_ENDPOINT)
-      if (!response.ok) {
-        throw new Error("Failed to fetch departments")
-      }
-      const result = await response.json()
-      setDepartments(result.data)
+      const response = await api.get('/departments')
+      setDepartments(response.data.data)
       setError(null)
     } catch (err) {
       console.error("Error fetching departments:", err)
@@ -47,12 +39,8 @@ export function useDepartments() {
   const fetchPositions = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(POSITIONS_ENDPOINT)
-      if (!response.ok) {
-        throw new Error("Failed to fetch positions")
-      }
-      const result = await response.json()
-      setPositions(result.data)
+      const response = await api.get('/positions')
+      setPositions(response.data.data)
       setError(null)
     } catch (err) {
       console.error("Error fetching positions:", err)
@@ -92,12 +80,8 @@ export function useDepartments() {
    */
   const getPositionsByDepartment = async (departmentId) => {
     try {
-      const response = await fetch(`${POSITIONS_ENDPOINT}/department/${departmentId}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch positions by department")
-      }
-      const data = await response.json()
-      return data
+      const response = await api.get(`/positions/department/${departmentId}`)
+      return response.data
     } catch (err) {
       console.error("Error fetching positions by department:", err)
       toast.error("Không thể tải danh sách vị trí của bộ phận")
@@ -112,19 +96,7 @@ export function useDepartments() {
   const addDepartment = async (name) => {
     try {
       setIsLoading(true)
-      const response = await fetch(DEPARTMENTS_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to add department")
-      }
-
-      // Refresh departments data after adding
+      await api.post('/departments', { name })
       await fetchDepartments()
       toast.success("Thêm bộ phận thành công")
     } catch (err) {
@@ -144,19 +116,7 @@ export function useDepartments() {
   const addPosition = async (name, departmentId) => {
     try {
       setIsLoading(true)
-      const response = await fetch(POSITIONS_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, department: departmentId }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to add position")
-      }
-
-      // Refresh both departments and positions data after adding
+      await api.post('/positions', { name, department: departmentId })
       await Promise.all([fetchDepartments(), fetchPositions()])
       toast.success("Thêm vị trí thành công")
     } catch (err) {
@@ -176,19 +136,7 @@ export function useDepartments() {
   const updateDepartment = async (departmentId, name) => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${DEPARTMENTS_ENDPOINT}/${departmentId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update department")
-      }
-
-      // Refresh departments data after updating
+      await api.put(`/departments/${departmentId}`, { name })
       await fetchDepartments()
       toast.success("Cập nhật bộ phận thành công")
     } catch (err) {
@@ -208,19 +156,7 @@ export function useDepartments() {
   const updatePosition = async (positionId, name) => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${POSITIONS_ENDPOINT}/${positionId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update position")
-      }
-
-      // Refresh both departments and positions data after updating
+      await api.put(`/positions/${positionId}`, { name })
       await Promise.all([fetchDepartments(), fetchPositions()])
       toast.success("Cập nhật vị trí thành công")
     } catch (err) {
@@ -239,15 +175,7 @@ export function useDepartments() {
   const deleteDepartment = async (departmentId) => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${DEPARTMENTS_ENDPOINT}/${departmentId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete department")
-      }
-
-      // Refresh both departments and positions data after deleting
+      await api.delete(`/departments/${departmentId}`)
       await Promise.all([fetchDepartments(), fetchPositions()])
       toast.success("Xóa bộ phận thành công")
     } catch (err) {
@@ -266,15 +194,7 @@ export function useDepartments() {
   const deletePosition = async (positionId) => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${POSITIONS_ENDPOINT}/${positionId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete position")
-      }
-
-      // Refresh both departments and positions data after deleting
+      await api.delete(`/positions/${positionId}`)
       await Promise.all([fetchDepartments(), fetchPositions()])
       toast.success("Xóa vị trí thành công")
     } catch (err) {
