@@ -86,7 +86,7 @@ export function Sidebar() {
             className="w-full justify-start"
           >
             <Building className="mr-2 h-4 w-4" />
-            Quản Lý Bộ Phận
+            Quản Lý
           </Button>
         </Link>
         {/* Liên kết đến trang Cài Đặt */}

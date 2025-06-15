@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AdminManagementTable } from "@/components/adminmanager"
 import { useDepartments } from "@/hooks/use-departments"
 import { Edit, Trash2, Save, X, Building, Briefcase } from "lucide-react"
 import {
@@ -35,6 +36,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import AssignPermissions from "@/components/AssignPermissions"
 
 export function DepartmentManagement() {
   const {
@@ -235,6 +237,8 @@ export function DepartmentManagement() {
           <TabsTrigger value="departments">Quản Lý Bộ Phận</TabsTrigger>
           <TabsTrigger value="positions">Quản Lý Vị Trí</TabsTrigger>
           <TabsTrigger value="filter">Lọc Vị Trí Theo Bộ Phận</TabsTrigger>
+          <TabsTrigger value="manageradmin">Quản lý Admin</TabsTrigger>
+          <TabsTrigger value="decentralization">Phân Quyền</TabsTrigger>
         </TabsList>
 
         {/* Tab Quản Lý Bộ Phận */}
@@ -733,6 +737,19 @@ export function DepartmentManagement() {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="manageradmin">
+            <div className="space-y-6">
+              <h1 className="text-3xl font-bold">Quản Lý Admin</h1>
+              <AdminManagementTable/>
+            </div>         
+        </TabsContent>
+        <TabsContent value="decentralization">
+            <div className="space-y-6">
+              <h1 className="text-3xl font-bold">Phân Quyền</h1>
+              <AssignPermissions/>
+            </div>         
+        </TabsContent>
+         
       </Tabs>
     </div>
   )
