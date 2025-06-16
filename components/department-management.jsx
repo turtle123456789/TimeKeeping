@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { AdminManagementTable } from "@/components/adminmanager"
 import { useDepartments } from "@/hooks/use-departments"
 import { useAuth } from "@/hooks/use-auth"
-import { Edit, Trash2, Save, X, Building, Briefcase } from "lucide-react"
+import { Edit, Trash2, Save, X, Building, Briefcase, Smartphone } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AssignPermissions from "@/components/AssignPermissions"
+import { DeviceManagement } from "@/components/device-management"
 
 export function DepartmentManagement() {
   const { isSuperAdmin } = useAuth()
@@ -250,6 +251,7 @@ export function DepartmentManagement() {
             <>
               <TabsTrigger value="manageradmin">Quản lý Admin</TabsTrigger>
               <TabsTrigger value="decentralization">Phân Quyền</TabsTrigger>
+              <TabsTrigger value="devices">Quản Lý Thiết Bị</TabsTrigger>
             </>
           )}
         </TabsList>
@@ -763,6 +765,9 @@ export function DepartmentManagement() {
                 <h1 className="text-3xl font-bold">Phân Quyền</h1>
                 <AssignPermissions/>
               </div>         
+            </TabsContent>
+            <TabsContent value="devices">
+              <DeviceManagement />
             </TabsContent>
           </>
         )}

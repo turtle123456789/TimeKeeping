@@ -1,99 +1,111 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { useEffect, useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { getAdminById } from "@/lib/api"
+import { Loader2 } from "lucide-react"
 
 export function EditAdminModal({ isOpen, onClose, adminId }) {
-  const [formData, setFormData] = useState({
-    fullName: "",
+  const [loading, setLoading] = useState(false)
+  const [adminData, setAdminData] = useState({
+    username: "",
     email: "",
-    role: "",
+    role: "admin",
   })
 
-  const [isSaving, setIsSaving] = useState(false)
-
   useEffect(() => {
-    if (adminId && isOpen) {
-      getAdminById(adminId).then((data) => {
-        setFormData({
-          fullName: data.fullName || "",
-          email: data.email || "",
-          role: data.role || "",
-        })
-      })
+    if (isOpen && adminId) {
+      fetchAdminDetails()
     }
-  }, [adminId, isOpen])
+  }, [])
 
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
+  const fetchAdminDetails = async () => {
+    try {
+      setLoading(true)
+      const data = await getAdminById(adminId)
+      setAdminData({
+        username: data.username || "",
+        email: data.email || "",
+        role: data.role || "admin",
+      })
+    } catch (error) {
+      toast.error("Không thể tải thông tin admin")
+      onClose()
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = async () => {
-    if (!adminId) return
-    setIsSaving(true)
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     try {
-      await updateAdminById(adminId, formData)
+      setLoading(true)
+      // TODO: Implement update admin API call
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Temporary delay
+      toast.success("Cập nhật thông tin admin thành công")
       onClose()
     } catch (error) {
-      console.error("Cập nhật thất bại:", error)
+      toast.error("Không thể cập nhật thông tin admin")
     } finally {
-      setIsSaving(false)
+      setLoading(false)
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Chỉnh sửa Admin</DialogTitle>
+          <DialogTitle>Chỉnh sửa thông tin Admin</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1">
-            <Label htmlFor="fullName">Họ tên</Label>
-            <Input
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Nhập họ tên"
-            />
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Đang tải...</span>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Nhập email"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="role">Vai trò</Label>
-            <Input
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              placeholder="Nhập vai trò (admin, manager,...)"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
-          </Button>
-        </DialogFooter>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Tên đăng nhập</Label>
+              <Input
+                id="username"
+                value={adminData.username}
+                onChange={(e) => setAdminData(prev => ({ ...prev, username: e.target.value }))}
+                placeholder="Nhập tên đăng nhập"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={adminData.email}
+                onChange={(e) => setAdminData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Nhập email"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  "Lưu thay đổi"
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   )

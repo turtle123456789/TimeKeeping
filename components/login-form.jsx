@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff, LogIn } from "lucide-react"
-import api, { setAuthToken } from "@/lib/api"
+import api, { setAuthToken, setUserData } from "@/lib/api"
 
 /**
  * Component form đăng nhập
@@ -40,10 +40,31 @@ export function LoginForm() {
         password
       });
 
-      const { token } = response.data;
+      console.log("Full response:", response);
+      console.log("Response data:", response.data);
+
+      // Check if response.data exists and has the expected structure
+      if (!response.data) {
+        throw new Error("No data received from server");
+      }
+
+      const { token, user } = response.data.data;
       
-      // Lưu token vào localStorage
+      // Validate token and user data
+      if (!token) {
+        throw new Error("Authentication token is missing");
+      }
+
+      if (!user) {
+        throw new Error("User data is missing");
+      }
+
+      console.log("Token:", token);
+      console.log("User:", user);
+
+      // Lưu token và thông tin user
       setAuthToken(token);
+      setUserData(user);
 
       toast({
         title: "Đăng nhập thành công",

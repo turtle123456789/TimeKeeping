@@ -13,7 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
 import { ExportExcelButton } from "@/components/export-excel-button"
-import { EditAdminModal } from "@/components/edit-admin-modal"
+import { UpdatePasswordModal } from "@/components/update-password-modal"
+import { getAllUsers } from "@/lib/api"
 
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -23,30 +24,62 @@ export function AdminManagementTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [date, setDate] = useState(new Date())
-  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [selectedAdminId, setSelectedAdminId] = useState(null)
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const formattedDate = format(date, "yyyy-MM-dd")
-  }, [date])
+    fetchUsers()
+  }, [])
 
+  const fetchUsers = async () => {
+    try {
+      const data = await getAllUsers()
+      setUsers(data)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const openEditModal = (adminId) => {
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user._id.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesRole = roleFilter === "all" || user.role === roleFilter
+    return matchesSearch && matchesRole
+  })
+
+  const handleEditClick = (adminId) => {
     setSelectedAdminId(adminId)
-    setEditModalOpen(true)
+    setPasswordModalOpen(true)
   }
 
   const prepareExcelData = () => {
-    return {
-        "Mã Quản Trị Viên": "",
-        "Họ Tên":  "-",
-        "Email":  "-",
-        "Vai Trò":  "-",
-        "Thời Gian Đăng Ký":  "-",
-      }
+    return filteredUsers.map(user => ({
+      "Mã Quản Trị Viên": user._id,
+      "Họ Tên": user.username,
+      "Email": "-",
+      "Vai Trò": user.role,
+      "Thời Gian Đăng Ký": format(new Date(user.createdAt), "dd/MM/yyyy HH:mm", { locale: vi }),
+    }))
   }
 
   const formattedDate = format(date, "dd-MM-yyyy", { locale: vi })
+
+  const getImageSrc = (imageAvatar) => {
+    if (!imageAvatar) return "/placeholder.svg"
+    // Check if the image is base64
+    if (imageAvatar.startsWith('data:image')) {
+      return imageAvatar
+    }
+    // If it's just base64 string without prefix, add the prefix
+    if (imageAvatar.match(/^[A-Za-z0-9+/=]+$/)) {
+      return `data:image/jpeg;base64,${imageAvatar}`
+    }
+    return "/placeholder.svg"
+  }
 
   return (
     <div className="space-y-4">
@@ -67,6 +100,8 @@ export function AdminManagementTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất Cả Vai Trò</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="user">User</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -121,54 +156,73 @@ export function AdminManagementTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableCell></TableCell>
-                    <TableCell>{"-"}</TableCell>
-                    <TableCell>{"-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{"-"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={"/placeholder.svg"} alt="Avatar" />
-                        <AvatarFallback>
-                          {"s"}
-                        </AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell>{"-"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/admins/edit`)}
-                        >
-                          <Pencil className="h-4 w-4 mr-1" />
-                          Sửa
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/admins`)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Chi tiết
-                        </Button>
-                      </div>
-                    </TableCell>
+                    <TableCell colSpan={7} className="text-center">Đang tải...</TableCell>
                   </TableRow>
+                ) : filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">Không có dữ liệu</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user._id}>
+                      <TableCell>{user._id}</TableCell>
+                      <TableCell>{user.username}</TableCell>
+                      <TableCell>{"-"}</TableCell>
+                      <TableCell>
+                        <Badge variant={user.role === "admin" ? "default" : "outline"}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage 
+                            src={getImageSrc(user.imageAvatar)} 
+                            alt={user.username}
+                          />
+                          <AvatarFallback>
+                            {user.username.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(user.createdAt), "dd/MM/yyyy HH:mm", { locale: vi })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditClick(user._id)}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Sửa
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/admins/${user._id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Chi tiết
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Modal chỉnh sửa quản trị viên */}
-      <EditAdminModal
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
+      <UpdatePasswordModal
+        isOpen={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
         adminId={selectedAdminId}
+        onSuccess={fetchUsers}
       />
     </div>
   )

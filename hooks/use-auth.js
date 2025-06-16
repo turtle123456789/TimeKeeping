@@ -4,7 +4,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getAuthToken } from "@/lib/api"
+import { getUserData } from "@/lib/api"
 import api from "@/lib/api"
 
 export function useAuth() {
@@ -13,22 +13,14 @@ export function useAuth() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const token = getAuthToken()
-      if (!token) {
+      const user = getUserData()
+      if (!user) {
         setUser(null)
         setIsLoading(false)
         return
       }
-
-      try {
-        const response = await api.get('/auth/me')
-        setUser(response.data.data)
-      } catch (error) {
-        console.error("Error fetching user:", error)
-        setUser(null)
-      } finally {
-        setIsLoading(false)
-      }
+      setUser(user)
+      setIsLoading(false)
     }
 
     fetchUser()

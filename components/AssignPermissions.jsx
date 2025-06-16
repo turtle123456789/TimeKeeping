@@ -7,41 +7,73 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { useEmployees } from '@/hooks/use-employees'
+import { getAdminUsers, getAllDevices, assignDevicesToAdmin, getAdminById } from '@/lib/api'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Loader2 } from 'lucide-react'
 
 const AssignPermissions = () => {
-  const { departments } = useEmployees()
   const [devices, setDevices] = useState([])
-
+  const [adminUsers, setAdminUsers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [selectedAdminId, setSelectedAdminId] = useState(null)
   const [permissions, setPermissions] = useState({
-    departments: {},
     devices: {},
   })
 
-  // Giả định gọi API để lấy danh sách thiết bị
-  const fetchDevices = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/devices`)
-      const result = await response.json()
-      setDevices(result.data)
-    } catch (err) {
-      toast.error('Không thể tải danh sách thiết bị')
-    }
-  }
-
   useEffect(() => {
-    fetchDevices()
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [devicesData, adminUsersData] = await Promise.all([
+          getAllDevices(),
+          getAdminUsers()
+        ])
+        setDevices(devicesData)
+        setAdminUsers(adminUsersData)
+      } catch (err) {
+        toast.error('Không thể tải dữ liệu')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
   }, [])
 
-  const handleAdminChange = (e) => {
-    const adminId = e.target.value
-    setSelectedAdminId(adminId)
-
-    // Reset permissions khi chọn admin khác
+  const handleAdminChange = async (value) => {
+    setSelectedAdminId(value)
+    // Reset permissions when selecting a different admin
     setPermissions({
-      departments: {},
       devices: {},
     })
+
+    if (value) {
+      try {
+        // Fetch admin details to get assigned devices
+        const adminData = await getAdminById(value)
+        if (adminData && adminData.devices) {
+          // Create a new permissions object with pre-selected devices
+          const newPermissions = {
+            devices: {}
+          }
+          console.log("device Id = ",adminData.devices)
+          // Set all devices to false first
+          devices.forEach(device => {
+            newPermissions.devices[device.deviceId] = false
+          })
+          
+          // Set assigned devices to true
+          adminData.devices.forEach(deviceId => {
+            newPermissions.devices[deviceId] = true
+          })
+          
+          setPermissions(newPermissions)
+        }
+      } catch (err) {
+        console.error('Error fetching admin details:', err)
+        toast.error('Không thể tải thông tin thiết bị đã gán')
+      }
+    }
   }
 
   const togglePermission = (type, id) => {
@@ -61,23 +93,34 @@ const AssignPermissions = () => {
     }
 
     try {
-      const body = {
-        adminId: selectedAdminId,
-        permissions,
+      // Get selected device IDs
+      const selectedDeviceIds = Object.entries(permissions.devices)
+        .filter(([_, isSelected]) => isSelected)
+        .map(([deviceId]) => deviceId)
+
+      if (selectedDeviceIds.length === 0) {
+        toast.warning('Vui lòng chọn ít nhất một thiết bị')
+        return
       }
 
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admins/${selectedAdminId}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
+      // Call API to assign devices
+      await assignDevicesToAdmin(selectedAdminId, selectedDeviceIds)
       toast.success('Phân quyền thành công')
     } catch (err) {
-      toast.error('Lỗi khi phân quyền')
+      console.error('Error assigning devices:', err)
+      toast.error(err.message || 'Lỗi khi phân quyền')
     }
+  }
+
+  if (loading) {
+    return (
+      <Card className="w-full max-w-3xl mx-auto mt-6">
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Đang tải...</span>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -85,42 +128,29 @@ const AssignPermissions = () => {
       <CardContent className="space-y-4 py-6">
         <div>
           <Label>Chọn Admin</Label>
-          <select
-            className="w-full border border-gray-300 rounded px-2 py-2 mt-1"
-            value={selectedAdminId || ''}
-            onChange={handleAdminChange}
-          >
-            <option value="">-- Chọn admin --</option>
-            <option key={"s"} value={"s"}>
-                {"amdin 1"} Email admin
-              </option>
-          </select>
+          <Select value={selectedAdminId || ''} onValueChange={handleAdminChange}>
+            <SelectTrigger className="w-full mt-1">
+              <SelectValue placeholder="-- Chọn admin --" />
+            </SelectTrigger>
+            <SelectContent>
+              {adminUsers.map((admin) => (
+                <SelectItem key={admin._id} value={admin._id}>
+                  {admin.username}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-2 gap-6">
           <div>
-            <Label className="text-lg">Phân quyền phòng ban</Label>
-            <div className="mt-2 space-y-2">
-              {departments.map((dept) => (
-                <div key={dept._id} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={permissions.departments[dept._id] || false}
-                    onCheckedChange={() => togglePermission('departments', dept._id)}
-                  />
-                  <span>{dept.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
             <Label className="text-lg">Phân quyền thiết bị</Label>
             <div className="mt-2 space-y-2">
               {devices.map((device) => (
-                <div key={device._id} className="flex items-center gap-2">
+                <div key={device.deviceId} className="flex items-center gap-2">
                   <Checkbox
-                    checked={permissions.devices[device._id] || false}
-                    onCheckedChange={() => togglePermission('devices', device._id)}
+                    checked={permissions.devices[device.deviceId] || false}
+                    onCheckedChange={() => togglePermission('devices', device.deviceId)}
                   />
                   <span>{device.name}</span>
                 </div>
