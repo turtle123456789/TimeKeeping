@@ -19,6 +19,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { ExportExcelButton } from "@/components/export-excel-button"
+import { api } from "@/lib/api"
 
 export function OvertimeEmployeesTable() {
   const { departments, employees } = useEmployees()
@@ -41,16 +42,18 @@ export function OvertimeEmployeesTable() {
     try {
       setIsLoading(true)
       const formattedDate = formatDate(selectedDate)
-      const url = `http://localhost:3001/api/employees/overtime?date=${formattedDate}&departmentId=${departmentId}`
-      
-      const response = await fetch(url)
-      const result = await response.json()
+      const response = await api.get(`/employees/overtime`, {
+        params: {
+          date: formattedDate,
+          departmentId: departmentId
+        }
+      })
 
-      if (result.status === 200 && result.data) {
-        setOvertimeEmployees(result.data.employees || [])
-        setTotalEmployees(result.data.totalEmployees || 0)
-        setTotalCheckins(result.data.totalCheckins || 0)
-        setOvertimeCount(result.data.overtimeEmployees || 0)
+      if (response.data.status === 200 && response.data.data) {
+        setOvertimeEmployees(response.data.data.employees || [])
+        setTotalEmployees(response.data.data.totalEmployees || 0)
+        setTotalCheckins(response.data.data.totalCheckins || 0)
+        setOvertimeCount(response.data.data.overtimeEmployees || 0)
       }
     } catch (error) {
       console.error('Error fetching overtime employees:', error)

@@ -45,6 +45,7 @@ export default function EditEmployeePage({ params }) {
         setFormData({
           employeeId: data?.employeeId || "",
           fullName: data?.fullName || "",
+          deviceId: data?.deviceId || "",
           email: data?.email || "",
           phone: data?.phone || "",
           department: data?.department?._id || "",

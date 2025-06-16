@@ -117,6 +117,7 @@ export default function NewEmployeePage() {
       const newEmployee = {
         employeeId: formData.employeeId || `NV${Date.now()}`,
         fullName: formData.name,
+        deviceId: formData.deviceId,
         email: formData.email,
         phone: formData.phone,
         department: formData.department,
