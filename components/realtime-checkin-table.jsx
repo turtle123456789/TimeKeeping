@@ -15,9 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search } from "lucide-react"
 import socket from "@/lib/socket"
 import api from "@/lib/api"
+import { useAuth } from "@/hooks/use-auth"
 
 export function RealtimeCheckinTable() {
   const {departments, employees } = useEmployees()
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [recentCheckins, setRecentCheckins] = useState([])
@@ -27,13 +29,11 @@ export function RealtimeCheckinTable() {
 
   // Fetch dữ liệu check-in khi component mount
   useEffect(() => {
-
     const formatTime = (time) => {
-      const hours = time.getHours().toString().padStart(2, '0'); // "08" 
-      const minutes = time.getMinutes().toString().padStart(2, '0'); // "15"
-      // Kết hợp giờ và phút
-      const formattedTime = `${hours}:${minutes}`;
-      return formattedTime;
+      const hours = time.getHours().toString().padStart(2, '0')
+      const minutes = time.getMinutes().toString().padStart(2, '0')
+      const formattedTime = `${hours}:${minutes}`
+      return formattedTime
     }
 
     const fetchTodayCheckins = async () => {
@@ -46,7 +46,6 @@ export function RealtimeCheckinTable() {
             if (!checkin || typeof checkin !== 'object') return null
 
             const checkinTime = new Date(checkin.checkIn)
-            console.log("checkinTime", checkinTime)
             if (isNaN(checkinTime.getTime())) {
               console.error('Invalid date:', checkin.checkIn)
               return null
@@ -59,7 +58,7 @@ export function RealtimeCheckinTable() {
               position: String(checkin.position || "Chưa có vị trí"),
               faceImage: String(checkin.faceImage || "/placeholder.svg"),
               checkinTime: checkinTime,
-              formattedTime: formatTime(checkinTime)
+              formattedTime: formatTime(checkinTime),
             }
           }).filter(Boolean)
 
@@ -73,7 +72,7 @@ export function RealtimeCheckinTable() {
     }
 
     fetchTodayCheckins()
-  }, []) // Chỉ chạy khi component mount
+  }, [])
 
   // Xử lý sự kiện check-in realtime
   useEffect(() => {
@@ -81,6 +80,12 @@ export function RealtimeCheckinTable() {
       if (!data || typeof data !== 'object') return
 
       try {
+        // Kiểm tra quyền thiết bị nếu là admin thường
+        if (user?.role === 'admin' && !user?.devices?.includes(data.deviceId)) {
+          console.warn(`Thiết bị ${data.deviceId} không thuộc quyền quản lý của admin này`)
+          return
+        }
+
         const checkinTime = data.checkinTime ? new Date(data.checkinTime) : 
                           data.timestamp ? new Date(data.timestamp) : 
                           new Date()

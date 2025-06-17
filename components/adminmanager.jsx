@@ -69,6 +69,7 @@ export function AdminManagementTable() {
   const formattedDate = format(date, "dd-MM-yyyy", { locale: vi })
 
   const getImageSrc = (imageAvatar) => {
+    console.log("imageAvatar = ", imageAvatar)
     if (!imageAvatar) return "/placeholder.svg"
     // Check if the image is base64
     if (imageAvatar.startsWith('data:image')) {
