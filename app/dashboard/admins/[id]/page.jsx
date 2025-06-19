@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Pencil } from "lucide-react"
-import { getAdminUserById } from "@/lib/api"
+import  getAdminUserById  from "@/lib/api"
 import { UpdateAdminModal } from "@/components/update-admin-modal"
 import { toast } from "sonner"
 

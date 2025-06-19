@@ -81,10 +81,11 @@ export function RealtimeCheckinTable() {
 
       try {
         // // Kiểm tra quyền thiết bị nếu là admin thường
-        // if (user?.role === 'admin' && !user?.devices?.includes(data.deviceId)) {
-        //   console.warn(`Thiết bị ${data.deviceId} không thuộc quyền quản lý của admin này`)
-        //   return
-        // }
+        console.log(user)
+        if (user?.role === 'admin' && !user?.devices?.includes(data.deviceId)) {
+          console.warn(`Thiết bị ${data.deviceId} không thuộc quyền quản lý của admin này`)
+          return
+        }
 
         const checkinTime = data.checkinTime ? new Date(data.checkinTime) : 
                           data.timestamp ? new Date(data.timestamp) : 
